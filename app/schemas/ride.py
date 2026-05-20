@@ -1,0 +1,78 @@
+from datetime import datetime
+from decimal import Decimal
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+
+class Coordinates(BaseModel):
+    lat: Decimal = Field(..., ge=-90, le=90)
+    lng: Decimal = Field(..., ge=-180, le=180)
+
+
+class RideEstimateRequest(BaseModel):
+    pickup: Coordinates
+    drop: Coordinates
+    ride_type_slug: str
+
+
+class RideEstimateResponse(BaseModel):
+    distance_km: Decimal
+    duration_min: Decimal
+    estimated_fare: Decimal
+    currency: str
+    surge_multiplier: Decimal
+
+
+class RideTypeResponse(BaseModel):
+    id: UUID
+    slug: str
+    name: str
+    description: str | None
+    icon_url: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class CreateRideRequest(BaseModel):
+    pickup: Coordinates
+    drop: Coordinates
+    pickup_address: str
+    drop_address: str
+    ride_type_slug: str
+
+
+class RideResponse(BaseModel):
+    id: UUID
+    status: str
+    pickup_lat: Decimal
+    pickup_lng: Decimal
+    pickup_address: str
+    drop_lat: Decimal
+    drop_lng: Decimal
+    drop_address: str
+    estimated_fare: Decimal
+    final_fare: Decimal | None
+    distance_km: Decimal | None
+    duration_min: Decimal | None
+    surge_multiplier: Decimal
+    ride_type_slug: str | None = None
+    requested_at: datetime
+    driver_assigned_at: datetime | None = None
+    driver_arrived_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    cancelled_at: datetime | None = None
+
+
+class RideStatusResponse(BaseModel):
+    id: UUID
+    status: str
+    message: str | None = None
+
+
+class RideHistoryResponse(BaseModel):
+    items: list[RideResponse]
+    page: int
+    limit: int
+    total: int

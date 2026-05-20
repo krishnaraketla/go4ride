@@ -1,0 +1,74 @@
+import asyncio
+import json
+import logging
+from uuid import UUID
+
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from jose import JWTError
+
+from app.core.redis import get_redis
+from app.core.security import verify_token
+
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["websocket"])
+
+_connections: dict[str, set[WebSocket]] = {}
+
+
+async def _subscribe_redis(ride_id: str) -> None:
+    if ride_id in _connections and len(_connections[ride_id]) > 0:
+        return
+    client = await get_redis()
+    pubsub = client.pubsub()
+    await pubsub.subscribe(f"ride:{ride_id}")
+
+    async def listener():
+        try:
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
+                data = message["data"]
+                dead = set()
+                for ws in _connections.get(ride_id, set()):
+                    try:
+                        await ws.send_text(data if isinstance(data, str) else data.decode())
+                    except Exception:
+                        dead.add(ws)
+                for ws in dead:
+                    _connections.get(ride_id, set()).discard(ws)
+        except asyncio.CancelledError:
+            await pubsub.unsubscribe(f"ride:{ride_id}")
+            await pubsub.close()
+
+    asyncio.create_task(listener())
+
+
+@router.websocket("/ws/rides/{ride_id}")
+async def ride_websocket(
+    websocket: WebSocket,
+    ride_id: UUID,
+    token: str = Query(...),
+):
+    try:
+        payload = verify_token(token, "access")
+        user_id = payload["sub"]
+    except (JWTError, ValueError):
+        await websocket.close(code=4001)
+        return
+
+    await websocket.accept()
+    key = str(ride_id)
+    _connections.setdefault(key, set()).add(websocket)
+    await _subscribe_redis(key)
+
+    await websocket.send_json(
+        {"type": "connected", "ride_id": key, "user_id": user_id}
+    )
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        _connections.get(key, set()).discard(websocket)
+        if not _connections.get(key):
+            _connections.pop(key, None)
