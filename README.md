@@ -31,10 +31,15 @@ python -m app.db.seed
 uvicorn app.main:app --reload --port 8000
 ```
 
-- Docs: http://localhost:8000/docs
+- Interactive docs: http://localhost:8000/docs
+- API reference (Markdown): [docs/API.md](docs/API.md)
 - Health: http://localhost:8000/health
 
-## Rider API endpoints
+## API documentation
+
+Full endpoint reference with request/response examples: **[docs/API.md](docs/API.md)**
+
+Quick list:
 
 | Method | Path | Description |
 |--------|------|-------------|
