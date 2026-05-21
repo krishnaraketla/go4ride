@@ -52,6 +52,17 @@ async def create_ride(
     return await ride_service.create_ride(db, rider, body, idempotency_key)
 
 
+@router.get("/rides/history", response_model=RideHistoryResponse)
+async def ride_history(
+    rider: Annotated[User, Depends(get_current_rider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+):
+    items, total = await ride_service.get_ride_history(db, rider, page, limit)
+    return RideHistoryResponse(items=items, page=page, limit=limit, total=total)
+
+
 @router.post("/rides/{ride_id}/cancel", response_model=RideResponse)
 async def cancel_ride(
     ride_id: UUID,
@@ -77,14 +88,3 @@ async def get_ride(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await ride_service.get_ride(db, rider, ride_id)
-
-
-@router.get("/rides/history", response_model=RideHistoryResponse)
-async def ride_history(
-    rider: Annotated[User, Depends(get_current_rider)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-):
-    items, total = await ride_service.get_ride_history(db, rider, page, limit)
-    return RideHistoryResponse(items=items, page=page, limit=limit, total=total)

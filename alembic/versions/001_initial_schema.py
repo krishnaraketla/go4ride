@@ -9,19 +9,32 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "001"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+userrole = postgresql.ENUM("rider", name="userrole", create_type=False)
+otppurpose = postgresql.ENUM("login", "register", name="otppurpose", create_type=False)
+ridestatus = postgresql.ENUM(
+    "requested",
+    "searching_driver",
+    "driver_assigned",
+    "driver_arrived",
+    "in_progress",
+    "completed",
+    "cancelled",
+    name="ridestatus",
+    create_type=False,
+)
+
 
 def upgrade() -> None:
-    op.execute("CREATE TYPE userrole AS ENUM ('rider')")
-    op.execute("CREATE TYPE otppurpose AS ENUM ('login', 'register')")
-    op.execute(
-        "CREATE TYPE ridestatus AS ENUM ('requested', 'searching_driver', 'driver_assigned', 'driver_arrived', 'in_progress', 'completed', 'cancelled')"
-    )
+    userrole.create(op.get_bind(), checkfirst=True)
+    otppurpose.create(op.get_bind(), checkfirst=True)
+    ridestatus.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "users",
@@ -30,7 +43,7 @@ def upgrade() -> None:
         sa.Column("email", sa.String(255), nullable=True),
         sa.Column("name", sa.String(255), nullable=True),
         sa.Column("avatar_url", sa.String(512), nullable=True),
-        sa.Column("role", sa.Enum("rider", name="userrole", create_type=False), nullable=False),
+        sa.Column("role", userrole, nullable=False),
         sa.Column("is_blocked", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -44,7 +57,7 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("phone", sa.String(20), nullable=False),
         sa.Column("code_hash", sa.String(255), nullable=False),
-        sa.Column("purpose", sa.Enum("login", "register", name="otppurpose", create_type=False), nullable=False),
+        sa.Column("purpose", otppurpose, nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.PrimaryKeyConstraint("id"),
@@ -107,21 +120,7 @@ def upgrade() -> None:
         sa.Column("rider_id", sa.UUID(), nullable=False),
         sa.Column("driver_id", sa.UUID(), nullable=True),
         sa.Column("ride_type_id", sa.UUID(), nullable=False),
-        sa.Column(
-            "status",
-            sa.Enum(
-                "requested",
-                "searching_driver",
-                "driver_assigned",
-                "driver_arrived",
-                "in_progress",
-                "completed",
-                "cancelled",
-                name="ridestatus",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
+        sa.Column("status", ridestatus, nullable=False),
         sa.Column("pickup_lat", sa.Numeric(10, 7), nullable=False),
         sa.Column("pickup_lng", sa.Numeric(10, 7), nullable=False),
         sa.Column("pickup_address", sa.Text(), nullable=False),
@@ -154,21 +153,7 @@ def upgrade() -> None:
         "ride_status_events",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("ride_id", sa.UUID(), nullable=False),
-        sa.Column(
-            "status",
-            sa.Enum(
-                "requested",
-                "searching_driver",
-                "driver_assigned",
-                "driver_arrived",
-                "in_progress",
-                "completed",
-                "cancelled",
-                name="ridestatus",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
+        sa.Column("status", ridestatus, nullable=False),
         sa.Column("message", sa.String(255), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.ForeignKeyConstraint(["ride_id"], ["rides.id"]),

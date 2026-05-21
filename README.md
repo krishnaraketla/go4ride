@@ -21,15 +21,38 @@ FastAPI backend for the **rider mobile app** only. Driver matching, driver APIs,
 
 ## Quick start
 
+**Requires:** Python **3.11+**, Docker Desktop running (Postgres + Redis).
+
+```bash
+# If you use conda, leave the old env first (mlp is Python 3.8 and will fail)
+conda deactivate
+
+chmod +x scripts/dev.sh
+./scripts/dev.sh setup    # venv, deps, docker, migrate, seed
+./scripts/dev.sh run      # API on http://127.0.0.1:8000
+```
+
+Manual equivalent (always activate `.venv` before `alembic` / `uvicorn`):
+
 ```bash
 docker compose up -d
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env
 alembic upgrade head
 python -m app.db.seed
 uvicorn app.main:app --reload --port 8000
 ```
+
+### Troubleshooting
+
+| Error | Cause | Fix |
+|-------|--------|-----|
+| `Cannot connect to the Docker daemon` | Docker Desktop not running | Start Docker Desktop, wait until ready, then `docker compose up -d` |
+| `command not found: alembic` | Wrong env (conda `mlp` or system Python without install) | `conda deactivate`, then `source .venv/bin/activate` and `pip install -e ".[dev]"` |
+| `cannot import name 'Annotated' from 'typing'` | Python **3.8** (e.g. conda `mlp`) | Use project `.venv` built with Python 3.11+: `rm -rf .venv && python3 -m venv .venv` |
+| `cannot import name 'async_sessionmaker'` | Old SQLAlchemy in conda env | Same as above — install deps inside `.venv` only |
+| `role "go4ride" does not exist` | App hit **local** Postgres on 5432, not Docker | Use port **5433** in `DATABASE_URL` (see `.env.example`); run `docker compose up -d` |
 
 - Interactive docs: http://localhost:8000/docs
 - API reference (Markdown): [docs/API.md](docs/API.md)
@@ -71,6 +94,15 @@ After booking, rides move to `searching_driver` and **stay there** until Phase 2
 ## OTP in development
 
 With `OTP_DEBUG=true`, the OTP is returned in the API response as `debug_otp` and logged when `OTP_PROVIDER=console`.
+
+## Phase 1 demo (interactive)
+
+`scripts/phase1_demo.py` is a `#%%` cell script that walks through auth, booking, WebSocket cancel, profile, and stats. Run cells in VS Code/Cursor, or execute the whole file:
+
+```bash
+./scripts/dev.sh run      # terminal 1
+./scripts/dev.sh demo     # terminal 2 (after API is up)
+```
 
 ## Tests
 

@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: Literal["development", "production", "test"] = "development"
-    database_url: str = "postgresql+asyncpg://go4ride:go4ride@localhost:5432/go4ride"
+    database_url: str = "postgresql+asyncpg://go4ride:go4ride@localhost:5433/go4ride"
     redis_url: str = "redis://localhost:6379/0"
 
     jwt_secret: str = "change-me"
