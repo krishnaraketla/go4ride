@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
 
 _connections: dict[str, set[WebSocket]] = {}
+_redis_listeners: set[str] = set()
 
 
 async def _subscribe_redis(ride_id: str) -> None:
-    if ride_id in _connections and len(_connections[ride_id]) > 0:
+    if ride_id in _redis_listeners:
         return
+    _redis_listeners.add(ride_id)
     client = await get_redis()
     pubsub = client.pubsub()
     await pubsub.subscribe(f"ride:{ride_id}")
@@ -37,6 +39,9 @@ async def _subscribe_redis(ride_id: str) -> None:
                 for ws in dead:
                     _connections.get(ride_id, set()).discard(ws)
         except asyncio.CancelledError:
+            pass
+        finally:
+            _redis_listeners.discard(ride_id)
             await pubsub.unsubscribe(f"ride:{ride_id}")
             await pubsub.close()
 
