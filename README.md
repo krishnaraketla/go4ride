@@ -95,14 +95,54 @@ After booking, rides move to `searching_driver` and **stay there** until Phase 2
 
 With `OTP_DEBUG=true`, the OTP is returned in the API response as `debug_otp` and logged when `OTP_PROVIDER=console`.
 
-## Phase 1 demo (interactive)
+## Phase 1 demo
 
-`scripts/phase1_demo.py` is a `#%%` cell script that walks through auth, booking, WebSocket cancel, profile, and stats. Run cells in VS Code/Cursor, or execute the whole file:
+`scripts/phase1_demo.py` runs an end-to-end walkthrough: Docker + DB setup, API health, auth (OTP), reverse geocode, fare estimate, profile, create ride (with idempotency), ride status/history, WebSocket cancel (Redis pub/sub), stats, and logout.
+
+### One command (recommended)
+
+From the repo root (Docker Desktop running):
+
+```bash
+./scripts/dev.sh demo
+```
+
+This will:
+
+1. `docker compose down` / `up -d`
+2. `./scripts/dev.sh setup` (venv, migrate, seed)
+3. Start the API on port 8000 if it is not already running (restarts it after Docker recycle)
+4. Run the full HTTP + WebSocket demo against `http://localhost:8000`
+
+Requires `OTP_DEBUG=true` in `.env` so login/register responses include `debug_otp`.
+
+### Manual (API already running)
+
+If you prefer to keep your own `uvicorn` process (e.g. `./scripts/dev.sh run` in another terminal):
 
 ```bash
 ./scripts/dev.sh run      # terminal 1
-./scripts/dev.sh demo     # terminal 2 (after API is up)
+DEMO_SKIP_SETUP=1 DEMO_SKIP_SERVER=1 ./scripts/dev.sh demo   # terminal 2
 ```
+
+### Demo options (environment variables)
+
+| Variable | Effect |
+|----------|--------|
+| `DEMO_RESET_DB=1` | Wipe Postgres volume (`./scripts/dev.sh reset-db`) instead of `setup` |
+| `DEMO_SKIP_SETUP=1` | Skip Docker and migrate/seed (DB and containers must already be ready) |
+| `DEMO_SKIP_SERVER=1` | Do not start or restart uvicorn; API must already be on port 8000 |
+
+Examples:
+
+```bash
+DEMO_RESET_DB=1 ./scripts/dev.sh demo          # fresh DB + full demo
+DEMO_SKIP_SETUP=1 DEMO_SKIP_SERVER=1 ./scripts/dev.sh demo   # API demo only
+```
+
+### Notebook
+
+`scripts/phase1_demo.ipynb` is an optional cell-by-cell version of the same flow for VS Code / Jupyter.
 
 ## Tests
 
