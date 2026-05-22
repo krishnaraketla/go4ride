@@ -323,22 +323,72 @@ def run_api_demo() -> None:
     pp("Ride history (first page)", history)
 
     assert status["status"] == "searching_driver", (
-        f"Phase 1 stub expects searching_driver, got {status['status']}"
+        f"Expected searching_driver immediately after create, got {status['status']}"
     )
-    print("Phase 1 lifecycle check: OK (status is searching_driver)")
+    print("Phase 1.5 lifecycle check: OK (initial status is searching_driver)")
 
     ws_url = f"ws://localhost:8000/api/v1/ws/rides/{ride_id}?token={access_token}"
 
-    async def websocket_cancel_demo() -> list[dict[str, Any]]:
+    async def websocket_lifecycle_demo() -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
         async with websockets.connect(ws_url, open_timeout=15) as ws:
             connected = json.loads(await asyncio.wait_for(ws.recv(), timeout=15.0))
             events.append(connected)
             print("WS connected:", connected)
 
+            deadline = time.monotonic() + 30.0
+            while time.monotonic() < deadline:
+                raw = await asyncio.wait_for(ws.recv(), timeout=8.0)
+                payload = json.loads(raw)
+                events.append(payload)
+                print("WS event:", payload.get("status"), payload.get("message"))
+                if payload.get("status") == "completed":
+                    break
+        return events
+
+    ws_events = asyncio.run(websocket_lifecycle_demo())
+    pp("WebSocket lifecycle events", ws_events)
+    statuses = [e.get("status") for e in ws_events if e.get("status")]
+    assert "driver_assigned" in statuses, "Expected driver_assigned on WS"
+    assert "completed" in statuses, "Expected completed on WS (mock auto-advance)"
+    assigned = next(e for e in ws_events if e.get("status") == "driver_assigned")
+    assert assigned.get("driver"), "Expected driver payload on driver_assigned event"
+    print("WebSocket full lifecycle check: OK")
+
+    with httpx.Client(timeout=15.0) as client:
+        completed = assert_ok(
+            client.get(f"{API}/rides/{ride_id}", headers=auth_headers),
+            "ride details after completion",
+        )
+    assert completed["status"] == "completed"
+    assert completed.get("driver"), "Expected driver on completed ride"
+    assert completed.get("final_fare"), "Expected final_fare on completed ride"
+    print("Completed ride REST check: OK")
+
+    # Second ride: cancel while mock driver is still searching
+    cancel_idempotency = str(uuid.uuid4())
+    with httpx.Client(timeout=20.0) as client:
+        cancel_ride = assert_ok(
+            client.post(
+                f"{API}/rides",
+                headers={**auth_headers, "Idempotency-Key": cancel_idempotency},
+                json=create_body,
+            ),
+            "create ride for cancel demo",
+        )
+    cancel_ride_id = str(cancel_ride["id"])
+    cancel_ws_url = f"ws://localhost:8000/api/v1/ws/rides/{cancel_ride_id}?token={access_token}"
+
+    async def websocket_cancel_demo() -> list[dict[str, Any]]:
+        events: list[dict[str, Any]] = []
+        async with websockets.connect(cancel_ws_url, open_timeout=15) as ws:
+            connected = json.loads(await asyncio.wait_for(ws.recv(), timeout=15.0))
+            events.append(connected)
+            print("WS connected (cancel ride):", connected)
+
             async with httpx.AsyncClient() as client:
                 cancel_resp = await client.post(
-                    f"{API}/rides/{ride_id}/cancel",
+                    f"{API}/rides/{cancel_ride_id}/cancel",
                     headers=auth_headers,
                     timeout=15.0,
                 )
@@ -355,10 +405,10 @@ def run_api_demo() -> None:
                     break
         return events
 
-    ws_events = asyncio.run(websocket_cancel_demo())
-    pp("WebSocket events", ws_events)
-    assert any(e.get("status") == "cancelled" for e in ws_events), "Expected cancelled event on WS"
-    print("WebSocket + Redis pub/sub check: OK")
+    cancel_ws_events = asyncio.run(websocket_cancel_demo())
+    pp("WebSocket cancel events", cancel_ws_events)
+    assert any(e.get("status") == "cancelled" for e in cancel_ws_events), "Expected cancelled event on WS"
+    print("WebSocket cancel + Redis pub/sub check: OK")
 
     with httpx.Client(timeout=15.0) as client:
         stats = assert_ok(client.get(f"{API}/stats", headers=auth_headers), "stats")
@@ -377,8 +427,8 @@ def run_api_demo() -> None:
 Phase 1 demo completed successfully.
 
   User ID     : {user_id}
-  Ride ID     : {ride_id}
-  Final status: cancelled (via REST + WS)
+  Ride ID     : {ride_id} (completed lifecycle)
+  Cancel ride : {cancel_ride_id} (cancelled via REST + WS)
 
 Endpoints exercised:
   GET  /health

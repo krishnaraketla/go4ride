@@ -43,7 +43,7 @@ Full reference with request/response examples: [API.md](./API.md)
 | Fare / catalog | `GET` | `/api/v1/ride-types` | None | List active ride types (mini, sedan) |
 | Fare | `POST` | `/api/v1/rides/estimate` | None | Fare quote (distance, duration, estimated fare) |
 | Rides | `POST` | `/api/v1/rides` | Bearer (rider) | Create booking |
-| Rides | `POST` | `/api/v1/rides/{ride_id}/cancel` | Bearer (rider) | Cancel while `requested` or `searching_driver` |
+| Rides | `POST` | `/api/v1/rides/{ride_id}/cancel` | Bearer (rider) | Cancel until `in_progress` (through `driver_arrived`) |
 | Rides | `GET` | `/api/v1/rides/{ride_id}` | Bearer (rider) | Full ride details |
 | Rides | `GET` | `/api/v1/rides/{ride_id}/status` | Bearer (rider) | Lightweight status |
 | Rides | `GET` | `/api/v1/rides/history` | Bearer (rider) | Paginated history (`?page=&limit=`) |
@@ -119,14 +119,14 @@ Base path: `/api/v1`
 | `GET` | `/api/v1/rides/{ride_id}/status` | Bearer (rider) | Current status only |
 | `GET` | `/api/v1/rides/history` | Bearer (rider) | Paginated ride list |
 
-### Phase 1 ride status
+### Ride status (Phase 1.5 mock in dev)
 
 ```
-requested → searching_driver → [Phase 2: driver_assigned → … → completed]
-                            ↘ cancelled (rider cancel)
+requested → searching_driver → driver_assigned → driver_arrived → in_progress → completed
+                            ↘ cancelled (rider cancel, until in_progress)
 ```
 
-Cancellable while `requested` or `searching_driver`.
+With `MOCK_DRIVER_ENABLED=true` (default in development), transitions after `searching_driver` run automatically. Cancellable through `driver_arrived`.
 
 ---
 

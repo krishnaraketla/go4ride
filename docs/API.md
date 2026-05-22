@@ -34,7 +34,7 @@ The Go4Ride API powers the **rider mobile app**. All business routes are prefixe
 | Phase 0 | Infrastructure, JWT auth, health check |
 | Phase 1 | Rider registration/login, profile, maps, fare quotes, ride booking, real-time status |
 
-Driver matching and admin APIs are **not** included in this version. After creating a ride, status moves to `searching_driver` and remains there until Phase 2.
+Driver matching APIs are **not** included in this version. In development (`MOCK_DRIVER_ENABLED=true`), rides auto-advance through the full lifecycle using a seeded mock driver. In production (`MOCK_DRIVER_ENABLED=false`), rides stay at `searching_driver` until Phase 2.
 
 ---
 
@@ -135,15 +135,21 @@ Errors return JSON with a stable `code` for client handling:
 ## Ride status lifecycle
 
 ```
-requested → searching_driver → [Phase 2: driver_assigned → … → completed]
-                            ↘ cancelled (rider cancel)
+requested → searching_driver → driver_assigned → driver_arrived → in_progress → completed
+                            ↘ cancelled (rider cancel, until in_progress)
 ```
 
-| Status | Phase 1 behavior |
-|--------|------------------|
+| Status | Behavior |
+|--------|----------|
 | `requested` | Ride record created |
-| `searching_driver` | Set immediately; no driver assigned yet |
-| `cancelled` | Rider cancelled while `requested` or `searching_driver` |
+| `searching_driver` | Set immediately after create |
+| `driver_assigned` | Mock driver assigned (dev) or real match (Phase 2) |
+| `driver_arrived` | Driver at pickup |
+| `in_progress` | Trip started; `start_otp` set on ride |
+| `completed` | Trip ended; `final_fare` set |
+| `cancelled` | Rider cancelled while `requested`, `searching_driver`, `driver_assigned`, or `driver_arrived` |
+
+When a driver is assigned, `RideResponse`, `RideStatusResponse`, and WebSocket events include a `driver` object (`id`, `name`, `phone`, vehicle fields, optional `lat`/`lng`, `eta_min`).
 
 ---
 
@@ -513,17 +519,18 @@ Create a ride booking.
   "driver_arrived_at": null,
   "started_at": null,
   "completed_at": null,
-  "cancelled_at": null
+  "cancelled_at": null,
+  "driver": null
 }
 ```
 
-Status transitions: `requested` → `searching_driver` (WebSocket events published for both).
+Status transitions: `requested` → `searching_driver` (WebSocket events published for both). With mock driver enabled, further transitions are published automatically.
 
 ---
 
 #### `POST /rides/{ride_id}/cancel`
 
-Cancel a ride. Only allowed while status is `requested` or `searching_driver`.
+Cancel a ride. Allowed while status is `requested`, `searching_driver`, `driver_assigned`, or `driver_arrived`. Not allowed once `in_progress`.
 
 **Auth:** Bearer (rider, must own ride)
 
@@ -550,8 +557,19 @@ Lightweight status check.
 ```json
 {
   "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-  "status": "searching_driver",
-  "message": null
+  "status": "driver_assigned",
+  "message": "Driver assigned",
+  "driver": {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "name": "Dev Driver",
+    "phone": "+919999000001",
+    "vehicle_model": "Toyota Etios",
+    "vehicle_plate": "KA01AB1234",
+    "vehicle_color": "white",
+    "lat": "12.9700",
+    "lng": "77.5900",
+    "eta_min": 5
+  }
 }
 ```
 
@@ -623,9 +641,20 @@ ws://localhost:8000/api/v1/ws/rides/{ride_id}?token=<access_token>
 ```json
 {
   "ride_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-  "status": "searching_driver",
-  "message": "Searching for driver",
-  "created_at": "2026-05-20T10:30:01.123456+00:00"
+  "status": "driver_assigned",
+  "message": "Driver assigned",
+  "created_at": "2026-05-20T10:30:05.123456+00:00",
+  "driver": {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "name": "Dev Driver",
+    "phone": "+919999000001",
+    "vehicle_model": "Toyota Etios",
+    "vehicle_plate": "KA01AB1234",
+    "vehicle_color": "white",
+    "lat": "12.9716",
+    "lng": "77.5946",
+    "eta_min": 5
+  }
 }
 ```
 

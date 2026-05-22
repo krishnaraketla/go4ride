@@ -8,6 +8,7 @@ FastAPI backend for the **rider mobile app** only. Driver matching, driver APIs,
 |-------|----------|
 | **Phase 0** | FastAPI scaffold, Postgres, Redis, Alembic, JWT/OTP auth primitives, health check |
 | **Phase 1** | Rider auth, profile, reverse geocode, fare estimate, ride booking (create/cancel/status/history), WebSocket ride updates |
+| **Phase 1.5** | Mock driver lifecycle (auto-assign/advance in dev) for rider UI testing |
 | Phase 2 | Driver app — *not in this repo yet* |
 | Phase 3 | Admin panel — *not in this repo yet* |
 
@@ -85,11 +86,25 @@ Quick list:
 | GET | `/api/v1/rides/history` | Paginated history |
 | WS | `/api/v1/ws/rides/{id}?token=...` | Live status events |
 
-## Ride status (Phase 1)
+## Ride status (Phase 1.5)
 
-After booking, rides move to `searching_driver` and **stay there** until Phase 2 adds driver matching. Cancellable while `requested` or `searching_driver`.
+With `MOCK_DRIVER_ENABLED=true` (default when `APP_ENV=development`), booked rides auto-advance:
 
-`requested` → `searching_driver` → *(Phase 2: driver_assigned → … → completed)* | `cancelled`
+`requested` → `searching_driver` → `driver_assigned` → `driver_arrived` → `in_progress` → `completed`
+
+Set `MOCK_DRIVER_ENABLED=false` in production; rides then stay at `searching_driver` until Phase 2 real matching.
+
+| Env var | Default (dev) | Description |
+|---------|---------------|-------------|
+| `MOCK_DRIVER_ENABLED` | `true` | Auto-assign seeded mock driver |
+| `MOCK_DRIVER_AUTO_ADVANCE` | `true` | Step through arrived → in_progress → completed |
+| `MOCK_DRIVER_ASSIGN_DELAY_SEC` | `2` | Delay before assign |
+| `MOCK_DRIVER_STEP_DELAY_SEC` | `5` | Delay between auto-advance steps |
+| `MOCK_DRIVER_ETA_MIN` | `5` | ETA shown on driver card |
+
+Cancel is allowed through `driver_arrived`; blocked once `in_progress`.
+
+`requested` → `searching_driver` → `driver_assigned` → `driver_arrived` → `in_progress` → `completed` | `cancelled`
 
 ## OTP in development
 
