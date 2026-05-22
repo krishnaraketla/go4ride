@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 .env
+.demo_session.json
 .venv/
 venv/
 dist/

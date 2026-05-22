@@ -140,6 +140,31 @@ DEMO_RESET_DB=1 ./scripts/dev.sh demo          # fresh DB + full demo
 DEMO_SKIP_SETUP=1 DEMO_SKIP_SERVER=1 ./scripts/dev.sh demo   # API demo only
 ```
 
+### Interactive demos (API must already be running)
+
+Two optional UIs share state via `.demo_session.json` (tokens, `ride_id`, addresses). Start the API first:
+
+```bash
+./scripts/dev.sh run          # terminal 1
+./scripts/dev.sh demo-menu    # terminal 2 — Typer numbered menu
+./scripts/dev.sh demo-tui     # terminal 2 — Textual TUI (key bindings)
+```
+
+| Command | File | Usage |
+|---------|------|--------|
+| `demo-menu` | `scripts/phase1_demo_menu.py` | Menu: Health, Auth, Estimate, Create ride, WS listen, Cancel, … |
+| `demo-tui` | `scripts/phase1_demo_tui.py` | Same steps via keys `1`–`9`, `s` session, `r` reset, `q` quit |
+
+Subcommands (non-interactive):
+
+```bash
+python scripts/phase1_demo_menu.py health
+python scripts/phase1_demo_menu.py auth
+python scripts/phase1_demo_menu.py ws-listen
+```
+
+Requires `OTP_DEBUG=true` for Auth. Typical walkthrough: **2** Auth → **4** Estimate → **5** Create ride → **7** WS listen → **8** Cancel (or cancel from Swagger while WS is open).
+
 ### Notebook
 
 `scripts/phase1_demo.ipynb` is an optional cell-by-cell version of the same flow for VS Code / Jupyter.
