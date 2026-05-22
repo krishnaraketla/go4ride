@@ -2,7 +2,7 @@ import json
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,7 +30,19 @@ class Settings(BaseSettings):
     maps_provider: Literal["mock", "google", "mapbox"] = "mock"
     maps_api_key: str = ""
 
+    mock_driver_enabled: bool | None = None
+    mock_driver_auto_advance: bool = True
+    mock_driver_assign_delay_sec: int = 2
+    mock_driver_step_delay_sec: int = 5
+    mock_driver_eta_min: int = 5
+
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+
+    @model_validator(mode="after")
+    def default_mock_driver_enabled(self) -> "Settings":
+        if self.mock_driver_enabled is None:
+            object.__setattr__(self, "mock_driver_enabled", self.app_env != "production")
+        return self
 
     @field_validator("cors_origins", mode="before")
     @classmethod

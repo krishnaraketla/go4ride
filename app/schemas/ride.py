@@ -42,6 +42,18 @@ class CreateRideRequest(BaseModel):
     ride_type_slug: str
 
 
+class DriverSummary(BaseModel):
+    id: UUID
+    name: str
+    phone: str
+    vehicle_model: str
+    vehicle_plate: str
+    vehicle_color: str
+    lat: Decimal | None = None
+    lng: Decimal | None = None
+    eta_min: int | None = None
+
+
 class RideResponse(BaseModel):
     id: UUID
     status: str
@@ -63,12 +75,14 @@ class RideResponse(BaseModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     cancelled_at: datetime | None = None
+    driver: DriverSummary | None = None
 
 
 class RideStatusResponse(BaseModel):
     id: UUID
     status: str
     message: str | None = None
+    driver: DriverSummary | None = None
 
 
 class RideHistoryResponse(BaseModel):
