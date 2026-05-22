@@ -3,6 +3,7 @@ import enum
 
 class UserRole(str, enum.Enum):
     rider = "rider"
+    driver = "driver"
 
 
 class OTPPurpose(str, enum.Enum):
