@@ -15,12 +15,12 @@ Interactive OpenAPI docs: [http://localhost:8000/docs](http://localhost:8000/doc
 4. [Error responses](#error-responses)
 5. [Ride status lifecycle](#ride-status-lifecycle)
 6. [Endpoints](#endpoints)
-   - [Health](#health)
-   - [Auth](#auth)
-   - [Profile](#profile)
-   - [Location](#location)
-   - [Rides](#rides)
-   - [WebSocket](#websocket)
+  - [Health](#health)
+  - [Auth](#auth)
+  - [Profile](#profile)
+  - [Location](#location)
+  - [Rides](#rides)
+  - [WebSocket](#websocket)
 7. [Typical booking flow](#typical-booking-flow)
 
 ---
@@ -29,10 +29,12 @@ Interactive OpenAPI docs: [http://localhost:8000/docs](http://localhost:8000/doc
 
 The Go4Ride API powers the **rider mobile app**. All business routes are prefixed with `/api/v1`.
 
-| Area | Description |
-|------|-------------|
-| Phase 0 | Infrastructure, JWT auth, health check |
+
+| Area    | Description                                                                          |
+| ------- | ------------------------------------------------------------------------------------ |
+| Phase 0 | Infrastructure, JWT auth, health check                                               |
 | Phase 1 | Rider registration/login, profile, maps, fare quotes, ride booking, real-time status |
+
 
 Driver matching APIs are **not** included in this version. In development (`MOCK_DRIVER_ENABLED=true`), rides auto-advance through the full lifecycle using a seeded mock driver. In production (`MOCK_DRIVER_ENABLED=false`), rides stay at `searching_driver` until Phase 2.
 
@@ -48,10 +50,12 @@ Authorization: Bearer <access_token>
 
 ### Token pair
 
-| Token | Lifetime (default) | Use |
-|-------|-------------------|-----|
-| `access_token` | 15 minutes | API requests + WebSocket `token` query param |
-| `refresh_token` | 7 days | Returned on verify-otp; send to logout to revoke |
+
+| Token           | Lifetime (default) | Use                                              |
+| --------------- | ------------------ | ------------------------------------------------ |
+| `access_token`  | 15 minutes         | API requests + WebSocket `token` query param     |
+| `refresh_token` | 7 days             | Returned on verify-otp; send to logout to revoke |
+
 
 Obtain tokens via `POST /api/v1/auth/verify-otp` after OTP verification.
 
@@ -61,28 +65,32 @@ Obtain tokens via `POST /api/v1/auth/verify-otp` after OTP verification.
 
 ### Headers
 
-| Header | Required | Description |
-|--------|----------|-------------|
-| `Authorization` | Protected routes | `Bearer <access_token>` |
-| `Content-Type` | POST/PATCH with body | `application/json` |
+
+| Header            | Required                  | Description                                                       |
+| ----------------- | ------------------------- | ----------------------------------------------------------------- |
+| `Authorization`   | Protected routes          | `Bearer <access_token>`                                           |
+| `Content-Type`    | POST/PATCH with body      | `application/json`                                                |
 | `Idempotency-Key` | Optional on `POST /rides` | Unique key; duplicate requests return the cached response for 24h |
-| `X-Request-ID` | Optional | Client-generated ID; echoed in response as `X-Request-ID` |
+| `X-Request-ID`    | Optional                  | Client-generated ID; echoed in response as `X-Request-ID`         |
+
 
 ### Pagination
 
 List endpoints use query parameters:
 
-| Param | Default | Max | Description |
-|-------|---------|-----|-------------|
-| `page` | `1` | — | Page number (1-based) |
-| `limit` | `20` | `100` | Items per page |
+
+| Param   | Default | Max   | Description           |
+| ------- | ------- | ----- | --------------------- |
+| `page`  | `1`     | —     | Page number (1-based) |
+| `limit` | `20`    | `100` | Items per page        |
+
 
 ### Coordinates
 
 Latitude and longitude are decimal numbers:
 
 - `lat`: -90 to 90  
-- `lng`: -180 to 180  
+- `lng`: -180 to 180
 
 ### Phone numbers
 
@@ -103,32 +111,36 @@ Errors return JSON with a stable `code` for client handling:
 
 ### Common HTTP status codes
 
-| Status | Meaning |
-|--------|---------|
-| `400` | Invalid input or business rule violation |
-| `401` | Missing or invalid access token |
-| `403` | Authenticated but not allowed (e.g. non-rider role) |
-| `404` | Resource not found |
-| `409` | Conflict (e.g. phone already registered) |
-| `429` | Rate limited (OTP requests) |
-| `500` | Internal server error (`INTERNAL_ERROR`) |
+
+| Status | Meaning                                             |
+| ------ | --------------------------------------------------- |
+| `400`  | Invalid input or business rule violation            |
+| `401`  | Missing or invalid access token                     |
+| `403`  | Authenticated but not allowed (e.g. non-rider role) |
+| `404`  | Resource not found                                  |
+| `409`  | Conflict (e.g. phone already registered)            |
+| `429`  | Rate limited (OTP requests)                         |
+| `500`  | Internal server error (`INTERNAL_ERROR`)            |
+
 
 ### Error codes reference
 
-| Code | Typical cause |
-|------|----------------|
-| `OTP_INVALID` | Wrong or expired OTP |
-| `PHONE_EXISTS` | Register with existing phone |
-| `USER_NOT_FOUND` | Login for unregistered phone |
-| `ACCOUNT_BLOCKED` | User is blocked |
-| `NAME_REQUIRED` | Register verify without `name` |
-| `RIDE_TYPE_NOT_FOUND` | Unknown `ride_type_slug` |
-| `FARE_RULE_NOT_FOUND` | No fare rule for ride type |
-| `RIDE_NOT_FOUND` | Ride ID invalid or not owned by rider |
+
+| Code                   | Typical cause                           |
+| ---------------------- | --------------------------------------- |
+| `OTP_INVALID`          | Wrong or expired OTP                    |
+| `PHONE_EXISTS`         | Register with existing phone            |
+| `USER_NOT_FOUND`       | Login for unregistered phone            |
+| `ACCOUNT_BLOCKED`      | User is blocked                         |
+| `NAME_REQUIRED`        | Register verify without `name`          |
+| `RIDE_TYPE_NOT_FOUND`  | Unknown `ride_type_slug`                |
+| `FARE_RULE_NOT_FOUND`  | No fare rule for ride type              |
+| `RIDE_NOT_FOUND`       | Ride ID invalid or not owned by rider   |
 | `RIDE_NOT_CANCELLABLE` | Cancel attempted after matching started |
-| `RATE_LIMITED` | Too many OTP requests |
-| `UNAUTHORIZED` | Invalid or missing JWT |
-| `FORBIDDEN` | Rider access required |
+| `RATE_LIMITED`         | Too many OTP requests                   |
+| `UNAUTHORIZED`         | Invalid or missing JWT                  |
+| `FORBIDDEN`            | Rider access required                   |
+
 
 ---
 
@@ -139,15 +151,17 @@ requested → searching_driver → driver_assigned → driver_arrived → in_pro
                             ↘ cancelled (rider cancel, until in_progress)
 ```
 
-| Status | Behavior |
-|--------|----------|
-| `requested` | Ride record created |
-| `searching_driver` | Set immediately after create |
-| `driver_assigned` | Mock driver assigned (dev) or real match (Phase 2) |
-| `driver_arrived` | Driver at pickup |
-| `in_progress` | Trip started; `start_otp` set on ride |
-| `completed` | Trip ended; `final_fare` set |
-| `cancelled` | Rider cancelled while `requested`, `searching_driver`, `driver_assigned`, or `driver_arrived` |
+
+| Status             | Behavior                                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `requested`        | Ride record created                                                                           |
+| `searching_driver` | Set immediately after create                                                                  |
+| `driver_assigned`  | Mock driver assigned (dev) or real match (Phase 2)                                            |
+| `driver_arrived`   | Driver at pickup                                                                              |
+| `in_progress`      | Trip started; `start_otp` set on ride                                                         |
+| `completed`        | Trip ended; `final_fare` set                                                                  |
+| `cancelled`        | Rider cancelled while `requested`, `searching_driver`, `driver_assigned`, or `driver_arrived` |
+
 
 When a driver is assigned, `RideResponse`, `RideStatusResponse`, and WebSocket events include a `driver` object (`id`, `name`, `phone`, vehicle fields, optional `lat`/`lng`, `eta_min`).
 
@@ -190,10 +204,12 @@ Start rider registration. Sends OTP via SMS (or console in dev).
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `phone` | string | Yes | 10–15 chars |
-| `name` | string | Yes | Display name (used on verify) |
+
+| Field   | Type   | Required | Description                   |
+| ------- | ------ | -------- | ----------------------------- |
+| `phone` | string | Yes      | 10–15 chars                   |
+| `name`  | string | Yes      | Display name (used on verify) |
+
 
 **Response `200`**
 
@@ -250,14 +266,16 @@ Verify OTP and receive JWT tokens. Creates the user account when `purpose` is `r
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `phone` | string | Yes | Same phone used for OTP |
-| `code` | string | Yes | 4–8 digit OTP |
-| `purpose` | string | Yes | `register` or `login` |
-| `name` | string | For `register` | Required when creating account |
-| `fcm_token` | string | No | Push notification token (Phase 1.5) |
-| `platform` | string | No | e.g. `ios`, `android` |
+
+| Field       | Type   | Required       | Description                         |
+| ----------- | ------ | -------------- | ----------------------------------- |
+| `phone`     | string | Yes            | Same phone used for OTP             |
+| `code`      | string | Yes            | 4–8 digit OTP                       |
+| `purpose`   | string | Yes            | `register` or `login`               |
+| `name`      | string | For `register` | Required when creating account      |
+| `fcm_token` | string | No             | Push notification token (Phase 1.5) |
+| `platform`  | string | No             | e.g. `ios`, `android`               |
+
 
 **Response `200`**
 
@@ -386,10 +404,12 @@ Convert coordinates to a human-readable address.
 
 **Query parameters**
 
-| Param | Type | Required | Description |
-|-------|------|----------|-------------|
-| `lat` | decimal | Yes | -90 to 90 |
-| `lng` | decimal | Yes | -180 to 180 |
+
+| Param | Type    | Required | Description |
+| ----- | ------- | -------- | ----------- |
+| `lat` | decimal | Yes      | -90 to 90   |
+| `lng` | decimal | Yes      | -180 to 180 |
+
 
 **Example**
 
@@ -536,9 +556,11 @@ Cancel a ride. Allowed while status is `requested`, `searching_driver`, `driver_
 
 **Path parameters**
 
-| Param | Description |
-|-------|-------------|
+
+| Param     | Description      |
+| --------- | ---------------- |
 | `ride_id` | UUID of the ride |
+
 
 **Response `200`** — `RideResponse` with `status: "cancelled"`.
 
@@ -636,7 +658,23 @@ ws://localhost:8000/api/v1/ws/rides/{ride_id}?token=<access_token>
 }
 ```
 
-**Status events** — pushed when ride status changes (JSON text):
+**Status events** — pushed when ride status changes (JSON text). The `status` field is one of:
+
+
+| `status`           | Typical message      | `driver` object                        |
+| ------------------ | -------------------- | -------------------------------------- |
+| `requested`        | Ride requested       | No                                     |
+| `searching_driver` | Searching for driver | No                                     |
+| `driver_assigned`  | Driver assigned      | Yes                                    |
+| `driver_arrived`   | Driver has arrived   | Yes                                    |
+| `in_progress`      | Trip started         | Yes                                    |
+| `completed`        | Trip completed       | Yes                                    |
+| `cancelled`        | Cancelled by rider   | Yes (if a driver was already assigned) |
+
+
+In dev with mock driver enabled, events usually arrive in lifecycle order: `requested` → `searching_driver` → `driver_assigned` → `driver_arrived` → `in_progress` → `completed`. `cancelled` is emitted if the rider cancels while still cancellable (before `in_progress`). See [Ride status lifecycle](#ride-status-lifecycle).
+
+Example (`driver_assigned`):
 
 ```json
 {
@@ -660,9 +698,11 @@ ws://localhost:8000/api/v1/ws/rides/{ride_id}?token=<access_token>
 
 **Close codes**
 
-| Code | Meaning |
-|------|---------|
+
+| Code   | Meaning                  |
+| ------ | ------------------------ |
 | `4001` | Invalid or expired token |
+
 
 **Client notes**
 
@@ -737,6 +777,9 @@ curl -X POST http://localhost:8000/api/v1/rides \
 
 ## Changelog
 
-| Version | Scope |
-|---------|--------|
-| 0.1.0 | Phase 0 + Phase 1 rider APIs |
+
+| Version | Scope                        |
+| ------- | ---------------------------- |
+| 0.1.0   | Phase 0 + Phase 1 rider APIs |
+
+
