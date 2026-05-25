@@ -18,6 +18,8 @@ async def update_profile(db: AsyncSession, user: User, data: ProfileUpdateReques
     if data.name is not None:
         user.name = data.name
     if data.email is not None:
+        if data.email != user.email:
+            user.email_verified_at = None
         user.email = data.email
     if data.avatar_url is not None:
         user.avatar_url = data.avatar_url
