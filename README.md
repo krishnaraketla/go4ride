@@ -59,6 +59,7 @@ uvicorn app.main:app --reload --port 8000
 - Interactive docs: http://localhost:8000/docs
 - API reference (Markdown): [docs/API.md](docs/API.md)
 - Endpoint list (tables): [docs/API_endpoints.md](docs/API_endpoints.md)
+- Deploy to Render (free tier): [docs/DEPLOY.md](docs/DEPLOY.md)
 - Health: http://localhost:8000/health
 
 ## API documentation

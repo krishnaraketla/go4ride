@@ -1,0 +1,70 @@
+# Render Blueprint for Go4Ride backend.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploys three free-tier services:
+#   - Web Service: FastAPI (Uvicorn) on Render's native Python runtime
+#   - Postgres: managed Postgres (free plan, 30-day expiry)
+#   - Key Value: Redis-compatible cache (free plan, 25 MB, no persistence)
+#
+# After importing this blueprint, set non-secret CORS_ORIGINS in the dashboard
+# to match your frontend domain. JWT_SECRET is generated automatically.
+
+services:
+  - type: web
+    name: go4ride-api
+    runtime: python
+    plan: free
+    region: singapore           # closest free region to India; change if needed
+    branch: main
+    healthCheckPath: /health
+    buildCommand: pip install -e .
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: go4ride-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: go4ride-cache
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRE_MINUTES
+        value: 15
+      - key: JWT_REFRESH_EXPIRE_DAYS
+        value: 7
+      - key: OTP_PROVIDER
+        value: console           # switch to twilio/msg91 once you add provider keys
+      - key: OTP_DEBUG
+        value: "true"            # set to "false" once a real OTP provider is wired
+      - key: MAPS_PROVIDER
+        value: mock              # switch to google/mapbox + MAPS_API_KEY when ready
+      - key: MOCK_DRIVER_ENABLED
+        value: "true"            # keep true for early demos; set false for real rides
+      - key: CORS_ORIGINS
+        value: '["*"]'           # tighten to your frontend origin(s) in the dashboard
+      - key: DEFAULT_CURRENCY
+        value: INR
+
+databases:
+  - name: go4ride-postgres
+    plan: free
+    region: singapore
+    databaseName: go4ride
+    user: go4ride
+    ipAllowList: []              # private network only; not reachable from internet
+
+# Render's free Redis-compatible service is the "Key Value" instance.
+# Persistence is unavailable on the free plan, which is fine for this app:
+# Redis is used for OTP rate limits, idempotency keys, and WebSocket pub/sub.
+keyValueInstances:
+  - name: go4ride-cache
+    plan: free
+    region: singapore
+    ipAllowList: []

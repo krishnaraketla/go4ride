@@ -45,6 +45,20 @@ class Settings(BaseSettings):
     referral_bonus: Decimal = Field(default=Decimal("5.00"))
     max_saved_addresses_per_user: int = 10
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, v: object) -> object:
+        # Managed Postgres providers (Render, Heroku, etc.) hand out URLs in
+        # the form `postgres://...` or `postgresql://...`. The async SQLAlchemy
+        # engine requires the `postgresql+asyncpg://` driver prefix, so we
+        # rewrite it here once at config load time.
+        if isinstance(v, str):
+            if v.startswith("postgres://"):
+                return "postgresql+asyncpg://" + v[len("postgres://") :]
+            if v.startswith("postgresql://"):
+                return "postgresql+asyncpg://" + v[len("postgresql://") :]
+        return v
+
     @model_validator(mode="after")
     def default_mock_driver_enabled(self) -> "Settings":
         if self.mock_driver_enabled is None:
