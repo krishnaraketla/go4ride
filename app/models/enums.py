@@ -11,6 +11,13 @@ class OTPPurpose(str, enum.Enum):
     register = "register"
 
 
+class CreditTransactionType(str, enum.Enum):
+    email_bonus = "email_bonus"
+    promo = "promo"
+    referral = "referral"
+    ride_applied = "ride_applied"
+
+
 class RideStatus(str, enum.Enum):
     requested = "requested"
     searching_driver = "searching_driver"

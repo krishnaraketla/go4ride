@@ -19,6 +19,11 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.rider)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    referral_code: Mapped[str | None] = mapped_column(String(16), unique=True, nullable=True, index=True)
+    referred_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
