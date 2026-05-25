@@ -29,6 +29,16 @@ async def get_route_distance_duration(
     return await _mapbox_directions(pickup_lat, pickup_lng, drop_lat, drop_lng)
 
 
+def haversine_distance_m(lat1: Decimal, lng1: Decimal, lat2: Decimal, lng2: Decimal) -> int:
+    """Great-circle distance in meters."""
+    r = 6371000
+    phi1, phi2 = math.radians(float(lat1)), math.radians(float(lat2))
+    dphi = math.radians(float(lat2) - float(lat1))
+    dlambda = math.radians(float(lng2) - float(lng1))
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return int(round(2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))))
+
+
 def _haversine_estimate(
     lat1: Decimal, lng1: Decimal, lat2: Decimal, lng2: Decimal
 ) -> tuple[Decimal, Decimal]:
