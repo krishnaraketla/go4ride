@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 
@@ -10,6 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: Literal["development", "production", "test"] = "development"
+    sqlalchemy_echo: bool | None = None
     database_url: str = "postgresql+asyncpg://go4ride:go4ride@localhost:5433/go4ride"
     redis_url: str = "redis://localhost:6379/0"
 
@@ -38,10 +40,17 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
+    default_currency: str = "INR"
+    email_verify_bonus: Decimal = Field(default=Decimal("5.00"))
+    referral_bonus: Decimal = Field(default=Decimal("5.00"))
+    max_saved_addresses_per_user: int = 10
+
     @model_validator(mode="after")
     def default_mock_driver_enabled(self) -> "Settings":
         if self.mock_driver_enabled is None:
             object.__setattr__(self, "mock_driver_enabled", self.app_env != "production")
+        if self.sqlalchemy_echo is None:
+            object.__setattr__(self, "sqlalchemy_echo", self.app_env == "development")
         return self
 
     @field_validator("cors_origins", mode="before")
