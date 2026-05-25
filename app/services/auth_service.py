@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.exceptions import bad_request, conflict, too_many_requests
+from app.core.exceptions import bad_request, conflict, too_many_requests, unauthorized
 from app.core.redis import check_rate_limit
 from app.core.security import (
     create_access_token,
@@ -68,6 +69,7 @@ async def verify_otp_and_login(
     name: str | None = None,
     fcm_token: str | None = None,
     platform: str | None = None,
+    referral_code: str | None = None,
 ) -> tuple[User, str, str]:
     result = await db.execute(
         select(OTPVerification)
@@ -92,6 +94,9 @@ async def verify_otp_and_login(
         user = User(phone=phone, name=name, role=UserRole.rider)
         db.add(user)
         await db.flush()
+        from app.services.wallet_service import apply_referral_on_register
+
+        await apply_referral_on_register(db, user, referral_code)
     else:
         if user is None or user.role != UserRole.rider:
             raise bad_request("User not found", "USER_NOT_FOUND")
@@ -110,6 +115,42 @@ async def verify_otp_and_login(
     )
     db.add(refresh_record)
     return user, access, refresh
+
+
+async def refresh_tokens(db: AsyncSession, refresh_token: str) -> tuple[User, str, str]:
+    from app.core.security import verify_token
+
+    try:
+        payload = verify_token(refresh_token, "refresh")
+    except ValueError as exc:
+        raise unauthorized("Invalid refresh token", "INVALID_REFRESH_TOKEN") from exc
+
+    token_hash = hash_refresh_token(refresh_token)
+    result = await db.execute(
+        select(RefreshToken).where(RefreshToken.token_hash == token_hash, RefreshToken.revoked.is_(False))
+    )
+    record = result.scalar_one_or_none()
+    if record is None or record.expires_at < datetime.now(timezone.utc):
+        raise unauthorized("Invalid refresh token", "INVALID_REFRESH_TOKEN")
+
+    user_id = UUID(payload["sub"])
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if user is None or user.is_blocked:
+        raise unauthorized("Invalid refresh token", "INVALID_REFRESH_TOKEN")
+
+    record.revoked = True
+    access = create_access_token(user.id, user.role.value)
+    new_refresh = create_refresh_token(user.id, user.role.value)
+    settings = get_settings()
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=hash_refresh_token(new_refresh),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=settings.jwt_refresh_expire_days),
+        )
+    )
+    return user, access, new_refresh
 
 
 async def logout(db: AsyncSession, refresh_token: str) -> None:

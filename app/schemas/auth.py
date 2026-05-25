@@ -19,6 +19,7 @@ class VerifyOTPRequest(BaseModel):
     name: str | None = Field(None, max_length=255)
     fcm_token: str | None = None
     platform: str | None = None
+    referral_code: str | None = Field(None, max_length=16)
 
 
 class TokenResponse(BaseModel):
@@ -27,6 +28,10 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user_id: UUID
     role: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 class LogoutRequest(BaseModel):

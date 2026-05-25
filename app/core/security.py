@@ -26,15 +26,29 @@ def generate_otp(length: int = 6) -> str:
 
 def create_access_token(user_id: UUID, role: str) -> str:
     settings = get_settings()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_expire_minutes)
-    payload = {"sub": str(user_id), "role": role, "type": "access", "exp": expire}
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.jwt_access_expire_minutes)
+    payload = {
+        "sub": str(user_id),
+        "role": role,
+        "type": "access",
+        "exp": expire,
+        "iat": now,
+        "jti": secrets.token_hex(8),
+    }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def create_refresh_token(user_id: UUID, role: str) -> str:
     settings = get_settings()
     expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt_refresh_expire_days)
-    payload = {"sub": str(user_id), "role": role, "type": "refresh", "exp": expire}
+    payload = {
+        "sub": str(user_id),
+        "role": role,
+        "type": "refresh",
+        "exp": expire,
+        "jti": secrets.token_hex(16),
+    }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 

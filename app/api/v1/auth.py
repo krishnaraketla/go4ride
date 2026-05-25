@@ -10,6 +10,7 @@ from app.schemas.auth import (
     LoginRequest,
     LogoutRequest,
     OTPSentResponse,
+    RefreshRequest,
     RegisterRequest,
     TokenResponse,
     VerifyOTPRequest,
@@ -42,10 +43,22 @@ async def verify_otp(body: VerifyOTPRequest, db: Annotated[AsyncSession, Depends
         name=body.name,
         fcm_token=body.fcm_token,
         platform=body.platform,
+        referral_code=body.referral_code,
     )
     return TokenResponse(
         access_token=access,
         refresh_token=refresh,
+        user_id=user.id,
+        role=user.role.value,
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(body: RefreshRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+    user, access, refresh_token = await auth_service.refresh_tokens(db, body.refresh_token)
+    return TokenResponse(
+        access_token=access,
+        refresh_token=refresh_token,
         user_id=user.id,
         role=user.role.value,
     )
