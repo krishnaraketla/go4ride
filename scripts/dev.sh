@@ -88,17 +88,17 @@ case "$cmd" in
     ;;
   demo)
     ensure_venv
-    python scripts/phase1_demo.py
+    python scripts/demo.py
     ;;
   demo-menu)
     ensure_venv
     pip install -q typer rich 2>/dev/null || true
-    python scripts/phase1_demo_menu.py
+    python scripts/demo_menu.py
     ;;
   demo-tui)
     ensure_venv
     pip install -q typer rich textual 2>/dev/null || true
-    python scripts/phase1_demo_tui.py
+    python scripts/demo_tui.py
     ;;
   migrate)
     ensure_venv
@@ -130,9 +130,9 @@ Usage: ./scripts/dev.sh <command>
 Commands:
   setup    Create .venv, install deps, start Docker, migrate, seed
   run      Start uvicorn (port 8000)
-  demo       Run scripts/phase1_demo.py (automated full flow)
-  demo-menu  Interactive Typer menu (scripts/phase1_demo_menu.py)
-  demo-tui   Interactive Textual TUI (scripts/phase1_demo_tui.py)
+  demo       Run scripts/demo.py (automated full API walkthrough)
+  demo-menu  Interactive Typer menu (scripts/demo_menu.py)
+  demo-tui   Interactive Textual TUI (scripts/demo_tui.py)
   migrate   alembic upgrade head
   seed      python -m app.db.seed
   reset-db  Wipe Postgres volume and re-migrate + seed
