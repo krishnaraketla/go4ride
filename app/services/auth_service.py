@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.exceptions import bad_request, conflict, too_many_requests, unauthorized
+from app.core.exceptions import bad_request, too_many_requests, unauthorized
 from app.core.redis import check_rate_limit
 from app.core.security import (
     create_access_token,
@@ -19,30 +19,31 @@ from app.models.enums import OTPPurpose, UserRole
 from app.models.user import OTPVerification, RefreshToken, User, UserDevice
 from app.services.otp_service import send_otp_sms
 
+# Single internal purpose for the unified phone-OTP flow. The DB enum keeps
+# both legacy values so no migration is required; we just always write `login`
+# and treat verify-otp as "auth attempt" regardless of whether the user exists.
+_AUTH_PURPOSE = OTPPurpose.login
 
-async def send_registration_otp(db: AsyncSession, phone: str, name: str) -> tuple[str | None, int]:
+
+async def send_auth_otp(db: AsyncSession, phone: str) -> tuple[str | None, int, bool]:
+    """Send an OTP for a phone number, creating the user lazily on verify.
+
+    Returns ``(debug_otp, expires_in_minutes, is_new_user)``. ``is_new_user`` is
+    a hint for the client UI; the actual account is created in
+    :func:`verify_otp_and_login`.
+    """
+
     if await check_rate_limit(f"otp:{phone}", limit=5, window_seconds=3600):
         raise too_many_requests("Too many OTP requests")
 
     result = await db.execute(select(User).where(User.phone == phone))
-    if result.scalar_one_or_none():
-        raise conflict("Phone already registered", "PHONE_EXISTS")
-
-    return await _create_otp(db, phone, OTPPurpose.register)
-
-
-async def send_login_otp(db: AsyncSession, phone: str) -> tuple[str | None, int]:
-    if await check_rate_limit(f"otp:{phone}", limit=5, window_seconds=3600):
-        raise too_many_requests("Too many OTP requests")
-
-    result = await db.execute(select(User).where(User.phone == phone, User.role == UserRole.rider))
     user = result.scalar_one_or_none()
-    if user is None:
-        raise bad_request("User not found", "USER_NOT_FOUND")
-    if user.is_blocked:
+    if user is not None and user.is_blocked:
         raise bad_request("Account is blocked", "ACCOUNT_BLOCKED")
 
-    return await _create_otp(db, phone, OTPPurpose.login)
+    is_new_user = user is None
+    debug_otp, expires_minutes = await _create_otp(db, phone, _AUTH_PURPOSE)
+    return debug_otp, expires_minutes, is_new_user
 
 
 async def _create_otp(db: AsyncSession, phone: str, purpose: OTPPurpose) -> tuple[str | None, int]:
@@ -65,15 +66,19 @@ async def verify_otp_and_login(
     db: AsyncSession,
     phone: str,
     code: str,
-    purpose: OTPPurpose,
     name: str | None = None,
     fcm_token: str | None = None,
     platform: str | None = None,
     referral_code: str | None = None,
-) -> tuple[User, str, str]:
+) -> tuple[User, str, str, bool]:
+    """Verify the latest OTP for ``phone``; create the rider account if missing.
+
+    Returns ``(user, access_token, refresh_token, is_new_user)``.
+    """
+
     result = await db.execute(
         select(OTPVerification)
-        .where(OTPVerification.phone == phone, OTPVerification.purpose == purpose)
+        .where(OTPVerification.phone == phone, OTPVerification.purpose == _AUTH_PURPOSE)
         .order_by(OTPVerification.created_at.desc())
         .limit(1)
     )
@@ -86,11 +91,8 @@ async def verify_otp_and_login(
     user_result = await db.execute(select(User).where(User.phone == phone))
     user = user_result.scalar_one_or_none()
 
-    if purpose == OTPPurpose.register:
-        if user is not None:
-            raise conflict("Phone already registered", "PHONE_EXISTS")
-        if not name:
-            raise bad_request("Name required for registration", "NAME_REQUIRED")
+    is_new_user = user is None
+    if is_new_user:
         user = User(phone=phone, name=name, role=UserRole.rider)
         db.add(user)
         await db.flush()
@@ -98,8 +100,13 @@ async def verify_otp_and_login(
 
         await apply_referral_on_register(db, user, referral_code)
     else:
-        if user is None or user.role != UserRole.rider:
+        if user.is_blocked:
+            raise bad_request("Account is blocked", "ACCOUNT_BLOCKED")
+        if user.role != UserRole.rider:
             raise bad_request("User not found", "USER_NOT_FOUND")
+        # Returning rider: only fill in name if it's still missing.
+        if name and not user.name:
+            user.name = name
 
     if fcm_token:
         device = UserDevice(user_id=user.id, fcm_token=fcm_token, platform=platform)
@@ -114,7 +121,7 @@ async def verify_otp_and_login(
         expires_at=datetime.now(timezone.utc) + timedelta(days=settings.jwt_refresh_expire_days),
     )
     db.add(refresh_record)
-    return user, access, refresh
+    return user, access, refresh, is_new_user
 
 
 async def refresh_tokens(db: AsyncSession, refresh_token: str) -> tuple[User, str, str]:

@@ -33,7 +33,7 @@ The Go4Ride API powers the **rider mobile app**. All business routes are prefixe
 | Area    | Description                                                                          |
 | ------- | ------------------------------------------------------------------------------------ |
 | Phase 0 | Infrastructure, JWT auth, health check                                               |
-| Phase 1 | Rider registration/login, profile, maps, fare quotes, ride booking, real-time status |
+| Phase 1 | Rider phone-OTP auth, profile, maps, fare quotes, ride booking, real-time status     |
 | Phase 2 | Insights, bookings history filters, repeat ride, saved addresses, settings, wallet/promo/referral/email verify, payment & invoice stubs |
 
 See [API_endpoints.md](./API_endpoints.md) for the full Phase 2 endpoint list.
@@ -131,10 +131,7 @@ Errors return JSON with a stable `code` for client handling:
 | Code                   | Typical cause                           |
 | ---------------------- | --------------------------------------- |
 | `OTP_INVALID`          | Wrong or expired OTP                    |
-| `PHONE_EXISTS`         | Register with existing phone            |
-| `USER_NOT_FOUND`       | Login for unregistered phone            |
 | `ACCOUNT_BLOCKED`      | User is blocked                         |
-| `NAME_REQUIRED`        | Register verify without `name`          |
 | `RIDE_TYPE_NOT_FOUND`  | Unknown `ride_type_slug`                |
 | `FARE_RULE_NOT_FOUND`  | No fare rule for ride type              |
 | `RIDE_NOT_FOUND`       | Ride ID invalid or not owned by rider   |
@@ -191,47 +188,16 @@ No authentication. Service liveness check.
 
 Base path: `/api/v1/auth`
 
-#### `POST /register`
+The rider app uses a single-step phone-OTP flow: there is **no separate
+`/register` or `/login` endpoint**. The client always calls
+`POST /auth/request-otp` followed by `POST /auth/verify-otp`. The account is
+created lazily on first verification.
 
-Start rider registration. Sends OTP via SMS (or console in dev).
+#### `POST /request-otp`
 
-**Auth:** None
-
-**Request body**
-
-```json
-{
-  "phone": "+919876543210",
-  "name": "Krishna"
-}
-```
-
-
-| Field   | Type   | Required | Description                   |
-| ------- | ------ | -------- | ----------------------------- |
-| `phone` | string | Yes      | 10–15 chars                   |
-| `name`  | string | Yes      | Display name (used on verify) |
-
-
-**Response `200`**
-
-```json
-{
-  "message": "OTP sent",
-  "expires_in_minutes": 10,
-  "debug_otp": "482910"
-}
-```
-
-`debug_otp` is only present when `OTP_DEBUG=true` (development).
-
-**Errors:** `409 PHONE_EXISTS`, `429 RATE_LIMITED`
-
----
-
-#### `POST /login`
-
-Send OTP to an existing rider.
+Send an OTP to a phone number. Works for both first-time sign-up and returning
+login — the server figures out which case it is and reports it via
+`is_new_user` so the UI can plan its next screen.
 
 **Auth:** None
 
@@ -243,15 +209,35 @@ Send OTP to an existing rider.
 }
 ```
 
-**Response `200`** — Same as register (`OTPSentResponse`).
 
-**Errors:** `400 USER_NOT_FOUND`, `400 ACCOUNT_BLOCKED`, `429 RATE_LIMITED`
+| Field   | Type   | Required | Description |
+| ------- | ------ | -------- | ----------- |
+| `phone` | string | Yes      | 10–15 chars |
+
+
+**Response `200`**
+
+```json
+{
+  "message": "OTP sent",
+  "expires_in_minutes": 10,
+  "is_new_user": true,
+  "debug_otp": "482910"
+}
+```
+
+- `is_new_user` — `true` when this phone has never signed in before. Use it to
+  decide whether to collect a name on the OTP-verify screen.
+- `debug_otp` — only present when `OTP_DEBUG=true` (development).
+
+**Errors:** `400 ACCOUNT_BLOCKED`, `429 RATE_LIMITED`
 
 ---
 
 #### `POST /verify-otp`
 
-Verify OTP and receive JWT tokens. Creates the user account when `purpose` is `register`.
+Verify the OTP and receive JWT tokens. Creates the rider account automatically
+when the phone is new.
 
 **Auth:** None
 
@@ -261,22 +247,22 @@ Verify OTP and receive JWT tokens. Creates the user account when `purpose` is `r
 {
   "phone": "+919876543210",
   "code": "482910",
-  "purpose": "register",
   "name": "Krishna",
+  "referral_code": "ABC123",
   "fcm_token": "optional-fcm-token",
   "platform": "ios"
 }
 ```
 
 
-| Field       | Type   | Required       | Description                         |
-| ----------- | ------ | -------------- | ----------------------------------- |
-| `phone`     | string | Yes            | Same phone used for OTP             |
-| `code`      | string | Yes            | 4–8 digit OTP                       |
-| `purpose`   | string | Yes            | `register` or `login`               |
-| `name`      | string | For `register` | Required when creating account      |
-| `fcm_token` | string | No             | Push notification token (Phase 1.5) |
-| `platform`  | string | No             | e.g. `ios`, `android`               |
+| Field           | Type   | Required | Description                                                                                                  |
+| --------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------ |
+| `phone`         | string | Yes      | Same phone used for `request-otp`                                                                            |
+| `code`          | string | Yes      | 4–8 digit OTP                                                                                                |
+| `name`          | string | No       | Saved on first sign-in for new users (skipped if the account already exists with a name).                    |
+| `referral_code` | string | No       | Applied on first sign-in to credit the referrer. Ignored for existing users.                                 |
+| `fcm_token`     | string | No       | Push notification token (Phase 1.5)                                                                          |
+| `platform`     | string | No       | e.g. `ios`, `android`                                                                                         |
 
 
 **Response `200`**
@@ -287,11 +273,16 @@ Verify OTP and receive JWT tokens. Creates the user account when `purpose` is `r
   "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
   "token_type": "bearer",
   "user_id": "550e8400-e29b-41d4-a716-446655440000",
-  "role": "rider"
+  "role": "rider",
+  "is_new_user": true
 }
 ```
 
-**Errors:** `400 OTP_INVALID`, `400 NAME_REQUIRED`, `409 PHONE_EXISTS`
+`is_new_user` mirrors the `request-otp` response and lets the client route to
+an onboarding screen (e.g. ask for name later via `PATCH /profile`) the first
+time a rider signs in.
+
+**Errors:** `400 OTP_INVALID`, `400 ACCOUNT_BLOCKED`
 
 ---
 
@@ -717,8 +708,8 @@ Example (`driver_assigned`):
 ## Typical booking flow
 
 ```text
-1. POST /auth/register          → OTP sent
-2. POST /auth/verify-otp        → access_token, refresh_token
+1. POST /auth/request-otp       → OTP sent, is_new_user flag
+2. POST /auth/verify-otp        → access_token, refresh_token (account auto-created if new)
 3. GET  /location/reverse-geocode?lat=...&lng=...  (pickup)
 4. GET  /location/reverse-geocode?lat=...&lng=...  (drop)
 5. GET  /ride-types
@@ -731,20 +722,20 @@ Example (`driver_assigned`):
 
 ### cURL examples
 
-**Register**
+**Request OTP**
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/register \
+curl -X POST http://localhost:8000/api/v1/auth/request-otp \
   -H "Content-Type: application/json" \
-  -d '{"phone":"+919876543210","name":"Krishna"}'
+  -d '{"phone":"+919876543210"}'
 ```
 
-**Verify OTP**
+**Verify OTP** (pass `name` only when the previous response had `is_new_user: true`)
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/verify-otp \
   -H "Content-Type: application/json" \
-  -d '{"phone":"+919876543210","code":"482910","purpose":"register","name":"Krishna"}'
+  -d '{"phone":"+919876543210","code":"482910","name":"Krishna"}'
 ```
 
 **Estimate fare**

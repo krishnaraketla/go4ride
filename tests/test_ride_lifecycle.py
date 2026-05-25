@@ -63,16 +63,15 @@ def _reset_clients() -> None:
 
 
 def _register_and_token(client: TestClient, phone: str) -> str:
-    reg = client.post(f"{API}/auth/register", json={"phone": phone, "name": "Lifecycle Test Rider"})
-    assert reg.status_code == 200, reg.text
-    debug_otp = reg.json().get("debug_otp")
+    otp_req = client.post(f"{API}/auth/request-otp", json={"phone": phone})
+    assert otp_req.status_code == 200, otp_req.text
+    debug_otp = otp_req.json().get("debug_otp")
     assert debug_otp, "OTP_DEBUG must be true for integration tests"
     verify = client.post(
         f"{API}/auth/verify-otp",
         json={
             "phone": phone,
             "code": debug_otp,
-            "purpose": "register",
             "name": "Lifecycle Test Rider",
         },
     )

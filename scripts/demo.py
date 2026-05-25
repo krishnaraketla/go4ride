@@ -206,21 +206,10 @@ def run_api_demo() -> None:
     pp("Health", health)
 
     with httpx.Client(timeout=15.0) as client:
-        reg = client.post(
-            f"{API}/auth/register",
-            json={"phone": DEMO_PHONE, "name": DEMO_NAME},
+        otp_resp = assert_ok(
+            client.post(f"{API}/auth/request-otp", json={"phone": DEMO_PHONE}),
+            "request-otp",
         )
-        if reg.status_code == 409:
-            pp("Auth", {"note": "Phone exists — using login"})
-            otp_resp = assert_ok(
-                client.post(f"{API}/auth/login", json={"phone": DEMO_PHONE}),
-                "login",
-            )
-            purpose = "login"
-        else:
-            otp_resp = assert_ok(reg, "register")
-            purpose = "register"
-
         debug_otp = otp_resp.get("debug_otp")
         if not debug_otp:
             raise RuntimeError("No debug_otp. Set OTP_DEBUG=true in .env and restart the API.")
@@ -232,8 +221,8 @@ def run_api_demo() -> None:
                 json={
                     "phone": DEMO_PHONE,
                     "code": debug_otp,
-                    "purpose": purpose,
-                    "name": DEMO_NAME if purpose == "register" else None,
+                    # Name is only persisted on the first sign-in for this phone.
+                    "name": DEMO_NAME,
                 },
             ),
             "verify-otp",

@@ -71,9 +71,8 @@ Quick list:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/auth/register` | Send OTP for new rider |
-| POST | `/api/v1/auth/login` | Send OTP for existing rider |
-| POST | `/api/v1/auth/verify-otp` | Verify OTP → JWT tokens |
+| POST | `/api/v1/auth/request-otp` | Send OTP for a phone (handles both first-time sign-up and returning login) |
+| POST | `/api/v1/auth/verify-otp` | Verify OTP → JWT tokens (creates rider account on first sign-in) |
 | POST | `/api/v1/auth/refresh` | Refresh JWT pair |
 | POST | `/api/v1/auth/logout` | Revoke refresh token |
 | GET | `/api/v1/auth/me` | Current user |
@@ -118,6 +117,16 @@ Set `MOCK_DRIVER_ENABLED=false` in production; rides then stay at `searching_dri
 Cancel is allowed through `driver_arrived`; blocked once `in_progress`.
 
 `requested` → `searching_driver` → `driver_assigned` → `driver_arrived` → `in_progress` → `completed` | `cancelled`
+
+## Auth flow (one-step OTP)
+
+The rider app uses a single OTP request endpoint for both first-time sign-up
+and returning login:
+
+1. `POST /api/v1/auth/request-otp` with `{"phone": "+91…"}` — always succeeds for a valid phone. The response includes `is_new_user` so the client knows whether to show an onboarding step after verification.
+2. `POST /api/v1/auth/verify-otp` with `{"phone", "code"}` (plus optional `name` and `referral_code`). If the phone has never signed in before, the rider account is created automatically; otherwise the user is logged in. The response includes the JWT pair and `is_new_user` so the client can route to onboarding vs. home.
+
+`name` is optional everywhere — riders can fill it later via `PATCH /api/v1/profile`. There is no separate `/auth/register` or `/auth/login` endpoint.
 
 ## OTP in development
 

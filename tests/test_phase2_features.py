@@ -58,15 +58,17 @@ def _reset_clients() -> None:
 
 def _register(client: TestClient) -> tuple[str, str]:
     phone = f"+9199{uuid.uuid4().int % 10**8:08d}"
-    reg = client.post(f"{API}/auth/register", json={"phone": phone, "name": "Phase2 Rider"})
-    assert reg.status_code == 200, reg.text
-    debug_otp = reg.json()["debug_otp"]
+    otp_req = client.post(f"{API}/auth/request-otp", json={"phone": phone})
+    assert otp_req.status_code == 200, otp_req.text
+    assert otp_req.json()["is_new_user"] is True
+    debug_otp = otp_req.json()["debug_otp"]
     verify = client.post(
         f"{API}/auth/verify-otp",
-        json={"phone": phone, "code": debug_otp, "purpose": "register", "name": "Phase2 Rider"},
+        json={"phone": phone, "code": debug_otp, "name": "Phase2 Rider"},
     )
     assert verify.status_code == 200, verify.text
     data = verify.json()
+    assert data["is_new_user"] is True
     return data["access_token"], data["refresh_token"]
 
 

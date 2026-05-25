@@ -73,9 +73,9 @@ curl https://go4ride-api.onrender.com/health
 open https://go4ride-api.onrender.com/docs
 
 # OTP flow (works because OTP_DEBUG=true returns the code in the response)
-curl -X POST https://go4ride-api.onrender.com/api/v1/auth/register \
+curl -X POST https://go4ride-api.onrender.com/api/v1/auth/request-otp \
   -H "Content-Type: application/json" \
-  -d '{"phone":"+919876543210","name":"Krishna"}'
+  -d '{"phone":"+919876543210"}'
 ```
 
 WebSocket smoke test:

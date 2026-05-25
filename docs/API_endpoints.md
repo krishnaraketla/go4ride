@@ -15,7 +15,7 @@ Full reference with request/response examples: [API.md](./API.md)
 | Area | Count | Auth |
 |------|-------|------|
 | Health | 1 | None |
-| Auth | 6 | Mixed |
+| Auth | 5 | Mixed |
 | Profile / Insights | 4 | Bearer (rider) |
 | Addresses | 4 | Bearer (rider) |
 | Settings | 2 | Bearer (rider) |
@@ -26,7 +26,7 @@ Full reference with request/response examples: [API.md](./API.md)
 | Rides | 8 | Bearer (rider) |
 | WebSocket | 1 | Access JWT (query) |
 
-**Total:** 37 HTTP routes + 1 WebSocket (+ `/health` outside `/api/v1`)
+**Total:** 36 HTTP routes + 1 WebSocket (+ `/health` outside `/api/v1`)
 
 ---
 
@@ -35,9 +35,8 @@ Full reference with request/response examples: [API.md](./API.md)
 | Area | Method | Path | Auth | Description |
 |------|--------|------|------|-------------|
 | Health | `GET` | `/health` | None | Liveness check |
-| Auth | `POST` | `/api/v1/auth/register` | None | Send OTP for new rider |
-| Auth | `POST` | `/api/v1/auth/login` | None | Send OTP for existing rider |
-| Auth | `POST` | `/api/v1/auth/verify-otp` | None | Verify OTP → JWTs (`referral_code` optional on register) |
+| Auth | `POST` | `/api/v1/auth/request-otp` | None | Send OTP for a phone (sign-up + login in one step). Response includes `is_new_user`. |
+| Auth | `POST` | `/api/v1/auth/verify-otp` | None | Verify OTP → JWTs. Creates the rider account on first sign-in. `name` / `referral_code` optional and only applied for new users. |
 | Auth | `POST` | `/api/v1/auth/refresh` | None* | Exchange refresh token for new token pair |
 | Auth | `POST` | `/api/v1/auth/logout` | None* | Revoke refresh token (body) |
 | Auth | `GET` | `/api/v1/auth/me` | Bearer | Current user summary |
@@ -98,8 +97,8 @@ Full reference with request/response examples: [API.md](./API.md)
 
 ## Typical booking flow
 
-1. `POST /api/v1/auth/register` or `POST /api/v1/auth/login`
-2. `POST /api/v1/auth/verify-otp` → `access_token`, `refresh_token`
+1. `POST /api/v1/auth/request-otp` — send the rider's phone number; response includes `is_new_user`
+2. `POST /api/v1/auth/verify-otp` → `access_token`, `refresh_token`; pass `name` (and optional `referral_code`) when `is_new_user` was true
 3. `POST /api/v1/auth/refresh` when access token expires
 4. `GET /api/v1/location/reverse-geocode` (optional)
 5. `GET /api/v1/ride-types`

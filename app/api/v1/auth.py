@@ -4,14 +4,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
-from app.models.enums import OTPPurpose, UserRole
 from app.models.user import User
 from app.schemas.auth import (
-    LoginRequest,
     LogoutRequest,
     OTPSentResponse,
     RefreshRequest,
-    RegisterRequest,
+    RequestOTPRequest,
     TokenResponse,
     VerifyOTPRequest,
 )
@@ -20,26 +18,32 @@ from app.services import auth_service
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/register", response_model=OTPSentResponse)
-async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(get_db)]):
-    debug_otp, expires = await auth_service.send_registration_otp(db, body.phone, body.name)
-    return OTPSentResponse(message="OTP sent", expires_in_minutes=expires, debug_otp=debug_otp)
+@router.post("/request-otp", response_model=OTPSentResponse)
+async def request_otp(body: RequestOTPRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Send an OTP to the given phone. Works for both new and returning riders.
 
+    The client should follow up with `POST /auth/verify-otp`. `is_new_user`
+    tells the UI whether to show an onboarding step (e.g. ask for name) after
+    verification.
+    """
 
-@router.post("/login", response_model=OTPSentResponse)
-async def login(body: LoginRequest, db: Annotated[AsyncSession, Depends(get_db)]):
-    debug_otp, expires = await auth_service.send_login_otp(db, body.phone)
-    return OTPSentResponse(message="OTP sent", expires_in_minutes=expires, debug_otp=debug_otp)
+    debug_otp, expires, is_new_user = await auth_service.send_auth_otp(db, body.phone)
+    return OTPSentResponse(
+        message="OTP sent",
+        expires_in_minutes=expires,
+        is_new_user=is_new_user,
+        debug_otp=debug_otp,
+    )
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
 async def verify_otp(body: VerifyOTPRequest, db: Annotated[AsyncSession, Depends(get_db)]):
-    purpose = OTPPurpose(body.purpose)
-    user, access, refresh = await auth_service.verify_otp_and_login(
+    """Verify OTP and return JWTs. Creates the rider account if first-time."""
+
+    user, access, refresh, is_new_user = await auth_service.verify_otp_and_login(
         db,
         body.phone,
         body.code,
-        purpose,
         name=body.name,
         fcm_token=body.fcm_token,
         platform=body.platform,
@@ -50,6 +54,7 @@ async def verify_otp(body: VerifyOTPRequest, db: Annotated[AsyncSession, Depends
         refresh_token=refresh,
         user_id=user.id,
         role=user.role.value,
+        is_new_user=is_new_user,
     )
 
 

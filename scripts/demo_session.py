@@ -98,20 +98,10 @@ def step_health() -> dict[str, Any]:
 def step_auth(session: DemoSession) -> dict[str, Any]:
     require_api()
     with httpx.Client(timeout=15.0) as client:
-        reg = client.post(
-            f"{API}/auth/register",
-            json={"phone": DEMO_PHONE, "name": DEMO_NAME},
+        otp_resp = assert_ok(
+            client.post(f"{API}/auth/request-otp", json={"phone": DEMO_PHONE}),
+            "request-otp",
         )
-        if reg.status_code == 409:
-            otp_resp = assert_ok(
-                client.post(f"{API}/auth/login", json={"phone": DEMO_PHONE}),
-                "login",
-            )
-            purpose = "login"
-        else:
-            otp_resp = assert_ok(reg, "register")
-            purpose = "register"
-
         debug_otp = otp_resp.get("debug_otp")
         if not debug_otp:
             raise RuntimeError("No debug_otp. Set OTP_DEBUG=true in .env and restart API.")
@@ -122,8 +112,8 @@ def step_auth(session: DemoSession) -> dict[str, Any]:
                 json={
                     "phone": DEMO_PHONE,
                     "code": debug_otp,
-                    "purpose": purpose,
-                    "name": DEMO_NAME if purpose == "register" else None,
+                    # Name is only used the first time this phone signs in.
+                    "name": DEMO_NAME,
                 },
             ),
             "verify-otp",
@@ -137,7 +127,11 @@ def step_auth(session: DemoSession) -> dict[str, Any]:
             "auth/me",
         )
     session.save()
-    return {"tokens": {**tokens, "access_token": "<redacted>"}, "me": me}
+    return {
+        "otp": otp_resp,
+        "tokens": {**tokens, "access_token": "<redacted>"},
+        "me": me,
+    }
 
 
 def step_geocode(session: DemoSession) -> dict[str, Any]:
