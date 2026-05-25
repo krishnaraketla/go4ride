@@ -14,7 +14,16 @@ from app.models.driver import DriverProfile
 from app.models.enums import RideStatus
 from app.models.ride import Ride, RideStatusEvent
 from app.models.user import User
-from app.schemas.ride import CreateRideRequest, DriverSummary, RideResponse, RideStatusResponse
+from app.core.config import get_settings as get_app_settings
+from app.schemas.invoice import InvoiceResponse
+from app.schemas.ride import (
+    Coordinates,
+    CreateRideRequest,
+    DriverSummary,
+    RepeatRideResponse,
+    RideResponse,
+    RideStatusResponse,
+)
 from app.services import fare_service, geo_service
 
 TERMINAL_STATUSES = {RideStatus.completed, RideStatus.cancelled}
@@ -150,17 +159,79 @@ async def get_ride_status(db: AsyncSession, rider: User, ride_id: UUID) -> RideS
     )
 
 
+def _history_status_clause(status: str | None):
+    """Build SQLAlchemy filter for ride history status query param."""
+    if status is None or status == "terminal":
+        return Ride.status.in_(TERMINAL_STATUSES)
+    if status == "all":
+        return None
+    if status == "completed":
+        return Ride.status == RideStatus.completed
+    if status == "cancelled":
+        return Ride.status == RideStatus.cancelled
+    raise bad_request(
+        "Invalid status filter. Use terminal, all, completed, or cancelled",
+        "INVALID_STATUS_FILTER",
+    )
+
+
+def _invoice_available(ride: Ride) -> bool:
+    return ride.status == RideStatus.completed and ride.final_fare is not None
+
+
+async def get_ride_invoice(db: AsyncSession, rider: User, ride_id: UUID) -> InvoiceResponse:
+    ride = await _get_ride_for_rider(db, rider.id, ride_id)
+    settings = get_app_settings()
+    if ride.status != RideStatus.completed or ride.final_fare is None:
+        return InvoiceResponse(available=False)
+    driver = await _driver_summary_for_ride(db, ride)
+    return InvoiceResponse(
+        available=True,
+        ride_id=ride.id,
+        status=ride.status.value,
+        pickup_address=ride.pickup_address,
+        drop_address=ride.drop_address,
+        final_fare=ride.final_fare,
+        currency=settings.default_currency,
+        completed_at=ride.completed_at,
+        driver=driver,
+        download_url=f"/api/v1/rides/{ride.id}/invoice/download",
+    )
+
+
+async def get_repeat_ride_payload(
+    db: AsyncSession, rider: User, ride_id: UUID
+) -> RepeatRideResponse:
+    ride = await _get_ride_for_rider(db, rider.id, ride_id)
+    slug = ride.ride_type.slug if ride.ride_type else "mini"
+    return RepeatRideResponse(
+        pickup=Coordinates(lat=ride.pickup_lat, lng=ride.pickup_lng),
+        drop=Coordinates(lat=ride.drop_lat, lng=ride.drop_lng),
+        pickup_address=ride.pickup_address,
+        drop_address=ride.drop_address,
+        ride_type_slug=slug,
+    )
+
+
 async def get_ride_history(
-    db: AsyncSession, rider: User, page: int = 1, limit: int = 20
+    db: AsyncSession,
+    rider: User,
+    page: int = 1,
+    limit: int = 20,
+    status: str | None = "terminal",
 ) -> tuple[list[RideResponse], int]:
     offset = (page - 1) * limit
+    conditions = [Ride.rider_id == rider.id]
+    status_clause = _history_status_clause(status)
+    if status_clause is not None:
+        conditions.append(status_clause)
     count_result = await db.execute(
-        select(func.count()).select_from(Ride).where(Ride.rider_id == rider.id)
+        select(func.count()).select_from(Ride).where(*conditions)
     )
     total = count_result.scalar() or 0
     result = await db.execute(
         select(Ride)
-        .where(Ride.rider_id == rider.id)
+        .where(*conditions)
         .options(selectinload(Ride.ride_type))
         .order_by(Ride.created_at.desc())
         .offset(offset)
@@ -316,4 +387,5 @@ async def _to_ride_response(db: AsyncSession, ride: Ride) -> RideResponse:
         completed_at=ride.completed_at,
         cancelled_at=ride.cancelled_at,
         driver=driver,
+        invoice_available=_invoice_available(ride),
     )

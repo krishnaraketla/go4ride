@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_rider, get_db, get_idempotency_key
 from app.models.ride import RideType
 from app.models.user import User
+from app.schemas.invoice import InvoiceResponse
 from app.schemas.ride import (
     CreateRideRequest,
     RideEstimateRequest,
     RideEstimateResponse,
+    RepeatRideResponse,
     RideHistoryResponse,
     RideResponse,
     RideStatusResponse,
@@ -58,9 +60,22 @@ async def ride_history(
     db: Annotated[AsyncSession, Depends(get_db)],
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    status: str = Query(
+        "terminal",
+        description="terminal (default), all, completed, or cancelled",
+    ),
 ):
-    items, total = await ride_service.get_ride_history(db, rider, page, limit)
+    items, total = await ride_service.get_ride_history(db, rider, page, limit, status)
     return RideHistoryResponse(items=items, page=page, limit=limit, total=total)
+
+
+@router.post("/rides/{ride_id}/repeat", response_model=RepeatRideResponse)
+async def repeat_ride(
+    ride_id: UUID,
+    rider: Annotated[User, Depends(get_current_rider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await ride_service.get_repeat_ride_payload(db, rider, ride_id)
 
 
 @router.post("/rides/{ride_id}/cancel", response_model=RideResponse)
@@ -88,3 +103,12 @@ async def get_ride(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await ride_service.get_ride(db, rider, ride_id)
+
+
+@router.get("/rides/{ride_id}/invoice", response_model=InvoiceResponse)
+async def ride_invoice(
+    ride_id: UUID,
+    rider: Annotated[User, Depends(get_current_rider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await ride_service.get_ride_invoice(db, rider, ride_id)

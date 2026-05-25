@@ -76,6 +76,15 @@ class RideResponse(BaseModel):
     completed_at: datetime | None = None
     cancelled_at: datetime | None = None
     driver: DriverSummary | None = None
+    invoice_available: bool = False
+
+
+class RepeatRideResponse(BaseModel):
+    pickup: Coordinates
+    drop: Coordinates
+    pickup_address: str
+    drop_address: str
+    ride_type_slug: str
 
 
 class RideStatusResponse(BaseModel):
