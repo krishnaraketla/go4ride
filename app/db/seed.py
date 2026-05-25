@@ -9,6 +9,7 @@ from app.models.driver import DriverProfile
 from app.models.enums import UserRole
 from app.models.ride import FareRule, RideType
 from app.models.user import User
+from app.models.wallet import PaymentMethod, PromoCode
 
 MOCK_DRIVER_PHONE = "+919999000001"
 MOCK_DRIVER_NAME = "Dev Driver"
@@ -37,7 +38,19 @@ async def seed() -> None:
                 description="Comfortable sedan rides",
                 icon_url=None,
             )
-            db.add_all([mini, sedan])
+            bike = RideType(
+                slug="bike",
+                name="Go4 Bike",
+                description="Quick bike rides",
+                icon_url=None,
+            )
+            xl = RideType(
+                slug="xl",
+                name="Go4 XL",
+                description="Spacious XL rides",
+                icon_url=None,
+            )
+            db.add_all([mini, sedan, bike, xl])
             await db.flush()
 
             db.add_all(
@@ -56,11 +69,43 @@ async def seed() -> None:
                         per_min_rate=Decimal("2.5"),
                         minimum_fare=Decimal("80"),
                     ),
+                    FareRule(
+                        ride_type_id=bike.id,
+                        base_fare=Decimal("25"),
+                        per_km_rate=Decimal("8"),
+                        per_min_rate=Decimal("1.5"),
+                        minimum_fare=Decimal("40"),
+                    ),
+                    FareRule(
+                        ride_type_id=xl.id,
+                        base_fare=Decimal("80"),
+                        per_km_rate=Decimal("20"),
+                        per_min_rate=Decimal("3"),
+                        minimum_fare=Decimal("100"),
+                    ),
                 ]
             )
-            print("Seeded ride types (mini, sedan) and fare rules")
+            print("Seeded ride types (mini, sedan, bike, xl) and fare rules")
         else:
-            print("Ride types already seeded")
+            for slug, name, desc, base, per_km, per_min, minimum in [
+                ("bike", "Go4 Bike", "Quick bike rides", "25", "8", "1.5", "40"),
+                ("xl", "Go4 XL", "Spacious XL rides", "80", "20", "3", "100"),
+            ]:
+                existing = await db.execute(select(RideType).where(RideType.slug == slug))
+                if existing.scalar_one_or_none() is None:
+                    rt = RideType(slug=slug, name=name, description=desc, icon_url=None)
+                    db.add(rt)
+                    await db.flush()
+                    db.add(
+                        FareRule(
+                            ride_type_id=rt.id,
+                            base_fare=Decimal(base),
+                            per_km_rate=Decimal(per_km),
+                            per_min_rate=Decimal(per_min),
+                            minimum_fare=Decimal(minimum),
+                        )
+                    )
+                    print(f"Seeded ride type {slug}")
 
         driver_result = await db.execute(select(User).where(User.phone == MOCK_DRIVER_PHONE))
         driver_user = driver_result.scalar_one_or_none()
@@ -83,6 +128,18 @@ async def seed() -> None:
                 print(f"Seeded driver profile for existing user ({MOCK_DRIVER_PHONE})")
             else:
                 print(f"Mock driver already seeded ({MOCK_DRIVER_PHONE})")
+
+        promo_result = await db.execute(select(PromoCode).where(PromoCode.code == "WELCOME5"))
+        if promo_result.scalar_one_or_none() is None:
+            db.add(
+                PromoCode(
+                    code="WELCOME5",
+                    amount=Decimal("5.00"),
+                    max_uses=None,
+                    is_active=True,
+                )
+            )
+            print("Seeded promo code WELCOME5")
 
         await db.commit()
 
