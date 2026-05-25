@@ -1,6 +1,6 @@
 # Go4Ride API Documentation
 
-**Version:** 0.1.0 (Phase 0 + Phase 1 — Rider app)  
+**Version:** 0.2.0 (Phase 0 + Phase 1 + Phase 2 — Rider app)  
 **Base URL:** `http://localhost:8000` (development)
 
 Interactive OpenAPI docs: [http://localhost:8000/docs](http://localhost:8000/docs)
@@ -34,7 +34,9 @@ The Go4Ride API powers the **rider mobile app**. All business routes are prefixe
 | ------- | ------------------------------------------------------------------------------------ |
 | Phase 0 | Infrastructure, JWT auth, health check                                               |
 | Phase 1 | Rider registration/login, profile, maps, fare quotes, ride booking, real-time status |
+| Phase 2 | Insights, bookings history filters, repeat ride, saved addresses, settings, wallet/promo/referral/email verify, payment & invoice stubs |
 
+See [API_endpoints.md](./API_endpoints.md) for the full Phase 2 endpoint list.
 
 Driver matching APIs are **not** included in this version. In development (`MOCK_DRIVER_ENABLED=true`), rides auto-advance through the full lifecycle using a seeded mock driver. In production (`MOCK_DRIVER_ENABLED=false`), rides stay at `searching_driver` until Phase 2.
 

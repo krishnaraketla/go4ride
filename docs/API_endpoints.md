@@ -1,6 +1,6 @@
 # Go4Ride API Endpoints
 
-**Version:** 0.1.0 (Phase 0 + Phase 1 — Rider app)  
+**Version:** 0.2.0 (Phase 0 + Phase 1 + Phase 2 — Rider app)  
 **Base URL:** `http://localhost:8000` (development)  
 **Prefix:** `/api/v1` for business routes
 
@@ -15,14 +15,18 @@ Full reference with request/response examples: [API.md](./API.md)
 | Area | Count | Auth |
 |------|-------|------|
 | Health | 1 | None |
-| Auth | 5 | Mixed |
-| Profile | 3 | Bearer (rider) |
+| Auth | 6 | Mixed |
+| Profile / Insights | 4 | Bearer (rider) |
+| Addresses | 4 | Bearer (rider) |
+| Settings | 2 | Bearer (rider) |
+| Wallet / Promo / Email | 5 | Bearer (rider) |
+| Payment methods | 4 | Bearer (rider) |
 | Location | 1 | None |
 | Fare / catalog | 2 | None |
-| Rides | 5 | Bearer (rider) |
+| Rides | 8 | Bearer (rider) |
 | WebSocket | 1 | Access JWT (query) |
 
-**Total:** 17 HTTP routes + 1 WebSocket (+ `/health` outside `/api/v1`)
+**Total:** 37 HTTP routes + 1 WebSocket (+ `/health` outside `/api/v1`)
 
 ---
 
@@ -33,124 +37,62 @@ Full reference with request/response examples: [API.md](./API.md)
 | Health | `GET` | `/health` | None | Liveness check |
 | Auth | `POST` | `/api/v1/auth/register` | None | Send OTP for new rider |
 | Auth | `POST` | `/api/v1/auth/login` | None | Send OTP for existing rider |
-| Auth | `POST` | `/api/v1/auth/verify-otp` | None | Verify OTP → `access_token` + `refresh_token` |
+| Auth | `POST` | `/api/v1/auth/verify-otp` | None | Verify OTP → JWTs (`referral_code` optional on register) |
+| Auth | `POST` | `/api/v1/auth/refresh` | None* | Exchange refresh token for new token pair |
 | Auth | `POST` | `/api/v1/auth/logout` | None* | Revoke refresh token (body) |
-| Auth | `GET` | `/api/v1/auth/me` | Bearer | Current user (id, phone, name, role) |
+| Auth | `GET` | `/api/v1/auth/me` | Bearer | Current user summary |
 | Profile | `GET` | `/api/v1/profile` | Bearer (rider) | Get rider profile |
-| Profile | `PATCH` | `/api/v1/profile` | Bearer (rider) | Update name, email, avatar |
-| Profile | `GET` | `/api/v1/stats` | Bearer (rider) | Ride stats (total rides, spend, etc.) |
+| Profile | `PATCH` | `/api/v1/profile` | Bearer (rider) | Update name, email, avatar (resets email verification if email changes) |
+| Profile | `GET` | `/api/v1/stats` | Bearer (rider) | Lifetime ride stats |
+| Insights | `GET` | `/api/v1/insights` | Bearer (rider) | Weekly/monthly analytics (`?period=weekly\|monthly`) |
+| Addresses | `GET` | `/api/v1/addresses` | Bearer (rider) | List saved addresses (`?lat=&lng=` for distance) |
+| Addresses | `POST` | `/api/v1/addresses` | Bearer (rider) | Create saved address |
+| Addresses | `PATCH` | `/api/v1/addresses/{id}` | Bearer (rider) | Update saved address |
+| Addresses | `DELETE` | `/api/v1/addresses/{id}` | Bearer (rider) | Delete saved address |
+| Settings | `GET` | `/api/v1/settings` | Bearer (rider) | User preferences |
+| Settings | `PATCH` | `/api/v1/settings` | Bearer (rider) | Update preferences |
+| Wallet | `GET` | `/api/v1/wallet` | Bearer (rider) | Ride credit balance |
+| Promo | `POST` | `/api/v1/promo/apply` | Bearer (rider) | Apply promo code |
+| Referral | `GET` | `/api/v1/referral` | Bearer (rider) | User referral code + reward info |
+| Partner | `POST` | `/api/v1/partner/interest` | Bearer (rider) | Record partner interest (stub) |
+| Email | `POST` | `/api/v1/email/send-verification` | Bearer (rider) | Send email verification code |
+| Email | `POST` | `/api/v1/email/verify` | Bearer (rider) | Verify email + one-time credit bonus |
+| Payment | `GET` | `/api/v1/payment-methods` | Bearer (rider) | List saved cards (stub) |
+| Payment | `POST` | `/api/v1/payment-methods` | Bearer (rider) | Add card metadata (stub, no PAN) |
+| Payment | `PATCH` | `/api/v1/payment-methods/{id}` | Bearer (rider) | Set default card |
+| Payment | `DELETE` | `/api/v1/payment-methods/{id}` | Bearer (rider) | Remove card |
 | Location | `GET` | `/api/v1/location/reverse-geocode` | None | `?lat=&lng=` → formatted address |
-| Fare / catalog | `GET` | `/api/v1/ride-types` | None | List active ride types (mini, sedan) |
-| Fare | `POST` | `/api/v1/rides/estimate` | None | Fare quote (distance, duration, estimated fare) |
+| Fare | `GET` | `/api/v1/ride-types` | None | List ride types (mini, sedan, bike, xl) |
+| Fare | `POST` | `/api/v1/rides/estimate` | None | Fare quote |
 | Rides | `POST` | `/api/v1/rides` | Bearer (rider) | Create booking |
-| Rides | `POST` | `/api/v1/rides/{ride_id}/cancel` | Bearer (rider) | Cancel until `in_progress` (through `driver_arrived`) |
+| Rides | `POST` | `/api/v1/rides/{ride_id}/cancel` | Bearer (rider) | Cancel ride |
+| Rides | `POST` | `/api/v1/rides/{ride_id}/repeat` | Bearer (rider) | Prefill payload for re-booking |
 | Rides | `GET` | `/api/v1/rides/{ride_id}` | Bearer (rider) | Full ride details |
 | Rides | `GET` | `/api/v1/rides/{ride_id}/status` | Bearer (rider) | Lightweight status |
-| Rides | `GET` | `/api/v1/rides/history` | Bearer (rider) | Paginated history (`?page=&limit=`) |
+| Rides | `GET` | `/api/v1/rides/{ride_id}/invoice` | Bearer (rider) | Receipt / invoice stub |
+| Rides | `GET` | `/api/v1/rides/history` | Bearer (rider) | Paginated history (`?status=terminal\|all\|completed\|cancelled`) |
 | WebSocket | `WS` | `/api/v1/ws/rides/{ride_id}?token=` | Access JWT (query) | Live ride status events |
 
-\*Logout does not use `Authorization`; it takes `refresh_token` in the JSON body.
+\*Refresh and logout take `refresh_token` in the JSON body (no `Authorization` header).
 
 ---
 
-## Auth API
+## Phase 2 notes
 
-Base path: `/api/v1/auth`
+### Ride history
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/api/v1/auth/register` | None | Send OTP for registration |
-| `POST` | `/api/v1/auth/login` | None | Send OTP for login |
-| `POST` | `/api/v1/auth/verify-otp` | None | Verify OTP, issue JWTs, create user on register |
-| `POST` | `/api/v1/auth/logout` | None* | Revoke refresh token |
-| `GET` | `/api/v1/auth/me` | Bearer | Authenticated user summary |
+- Default `status=terminal` returns only `completed` and `cancelled` rides (Bookings screen).
+- Each ride includes `invoice_available: true` when completed with a `final_fare`.
 
-### Token pair
+### Insights
 
-| Token | Lifetime (default) | Use |
-|-------|-------------------|-----|
-| `access_token` | 15 minutes | API requests + WebSocket `token` query param |
-| `refresh_token` | 7 days | Returned on verify-otp; send to logout to revoke |
+`GET /api/v1/insights?period=weekly` returns `rides_count`, `total_km`, `total_spend`, `trend[]`, `comparison_pct`, and `distribution[]` by ride type.
 
----
+### Credits
 
-## Profile API
-
-Base path: `/api/v1`
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/v1/profile` | Bearer (rider) | Get profile |
-| `PATCH` | `/api/v1/profile` | Bearer (rider) | Update profile |
-| `GET` | `/api/v1/stats` | Bearer (rider) | Rider statistics |
-
----
-
-## Location API
-
-Base path: `/api/v1/location`
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/v1/location/reverse-geocode` | None | Coordinates → address (`lat`, `lng` query params) |
-
----
-
-## Fare API
-
-There is no `/fare` prefix. Fare and catalog routes live under `/api/v1`:
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/v1/ride-types` | None | Vehicle types for booking UI |
-| `POST` | `/api/v1/rides/estimate` | None | Pre-booking fare estimate |
-
----
-
-## Rides API
-
-Base path: `/api/v1`
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/api/v1/rides` | Bearer (rider) | Create ride (optional `Idempotency-Key` header) |
-| `POST` | `/api/v1/rides/{ride_id}/cancel` | Bearer (rider) | Cancel ride |
-| `GET` | `/api/v1/rides/{ride_id}` | Bearer (rider) | Ride details |
-| `GET` | `/api/v1/rides/{ride_id}/status` | Bearer (rider) | Current status only |
-| `GET` | `/api/v1/rides/history` | Bearer (rider) | Paginated ride list |
-
-### Ride status (Phase 1.5 mock in dev)
-
-```
-requested → searching_driver → driver_assigned → driver_arrived → in_progress → completed
-                            ↘ cancelled (rider cancel, until in_progress)
-```
-
-With `MOCK_DRIVER_ENABLED=true` (default in development), transitions after `searching_driver` run automatically. Cancellable through `driver_arrived`.
-
----
-
-## WebSocket
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `WS` | `/api/v1/ws/rides/{ride_id}?token=<access_token>` | Access JWT | Real-time ride status events |
-
----
-
-## Health
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/health` | None | Service liveness (not under `/api/v1`) |
-
----
-
-## Not implemented
-
-| Method | Path | Notes |
-|--------|------|-------|
-| `POST` | `/api/v1/auth/refresh` | Refresh token issued on login but no refresh endpoint yet; re-login via OTP when access expires |
+- Seed promo `WELCOME5` (₹5) available after `python -m app.db.seed`.
+- Email verification grants `EMAIL_VERIFY_BONUS` (default ₹5) once per user.
+- Referral bonus granted to referrer when a new user registers with `referral_code`.
 
 ---
 
@@ -158,11 +100,12 @@ With `MOCK_DRIVER_ENABLED=true` (default in development), transitions after `sea
 
 1. `POST /api/v1/auth/register` or `POST /api/v1/auth/login`
 2. `POST /api/v1/auth/verify-otp` → `access_token`, `refresh_token`
-3. `GET /api/v1/location/reverse-geocode` (optional, for addresses)
-4. `GET /api/v1/ride-types`
-5. `POST /api/v1/rides/estimate`
-6. `POST /api/v1/rides` (with `Authorization: Bearer …`)
-7. `WS /api/v1/ws/rides/{ride_id}?token=…` for live updates
-8. `GET /api/v1/rides/{ride_id}/status` or `GET /api/v1/rides/{ride_id}` as needed
-9. `POST /api/v1/rides/{ride_id}/cancel` (if cancelling)
-10. `POST /api/v1/auth/logout` on sign-out
+3. `POST /api/v1/auth/refresh` when access token expires
+4. `GET /api/v1/location/reverse-geocode` (optional)
+5. `GET /api/v1/ride-types`
+6. `POST /api/v1/rides/estimate`
+7. `POST /api/v1/rides`
+8. `WS /api/v1/ws/rides/{ride_id}?token=…`
+9. `GET /api/v1/rides/history` for Bookings
+10. `POST /api/v1/rides/{ride_id}/repeat` → estimate + create for “Repeat ride”
+11. `POST /api/v1/auth/logout` on sign-out

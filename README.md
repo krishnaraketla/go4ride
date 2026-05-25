@@ -1,4 +1,4 @@
-# Go4Ride Backend (Phase 0 + Phase 1)
+# Go4Ride Backend (Phase 0 + Phase 1 + Phase 2)
 
 FastAPI backend for the **rider mobile app** only. Driver matching, driver APIs, and admin panel are planned for later phases and are not included in this codebase.
 
@@ -9,7 +9,8 @@ FastAPI backend for the **rider mobile app** only. Driver matching, driver APIs,
 | **Phase 0** | FastAPI scaffold, Postgres, Redis, Alembic, JWT/OTP auth primitives, health check |
 | **Phase 1** | Rider auth, profile, reverse geocode, fare estimate, ride booking (create/cancel/status/history), WebSocket ride updates |
 | **Phase 1.5** | Mock driver lifecycle (auto-assign/advance in dev) for rider UI testing |
-| Phase 2 | Driver app — *not in this repo yet* |
+| **Phase 2** | Bookings filters, insights, repeat ride, saved addresses, settings, wallet/promo/referral/email verify, payment & invoice stubs |
+| Phase 2 (driver) | Driver app — *not in this repo yet* |
 | Phase 3 | Admin panel — *not in this repo yet* |
 
 ## Stack
@@ -72,10 +73,19 @@ Quick list:
 | POST | `/api/v1/auth/register` | Send OTP for new rider |
 | POST | `/api/v1/auth/login` | Send OTP for existing rider |
 | POST | `/api/v1/auth/verify-otp` | Verify OTP → JWT tokens |
+| POST | `/api/v1/auth/refresh` | Refresh JWT pair |
 | POST | `/api/v1/auth/logout` | Revoke refresh token |
 | GET | `/api/v1/auth/me` | Current user |
 | GET/PATCH | `/api/v1/profile` | Rider profile |
-| GET | `/api/v1/stats` | Ride stats |
+| GET | `/api/v1/stats` | Lifetime ride stats |
+| GET | `/api/v1/insights` | Weekly/monthly analytics |
+| CRUD | `/api/v1/addresses` | Saved addresses |
+| GET/PATCH | `/api/v1/settings` | User preferences |
+| GET | `/api/v1/wallet` | Ride credit balance |
+| POST | `/api/v1/promo/apply` | Apply promo code |
+| GET | `/api/v1/referral` | Referral code |
+| POST | `/api/v1/email/*` | Email verification |
+| CRUD | `/api/v1/payment-methods` | Saved cards (stub) |
 | GET | `/api/v1/location/reverse-geocode` | Lat/lng → address |
 | GET | `/api/v1/ride-types` | Mini, sedan, etc. |
 | POST | `/api/v1/rides/estimate` | Fare quote |
@@ -83,7 +93,9 @@ Quick list:
 | POST | `/api/v1/rides/{id}/cancel` | Cancel ride |
 | GET | `/api/v1/rides/{id}` | Ride details |
 | GET | `/api/v1/rides/{id}/status` | Current status |
-| GET | `/api/v1/rides/history` | Paginated history |
+| GET | `/api/v1/rides/history` | Paginated history (`?status=`) |
+| POST | `/api/v1/rides/{id}/repeat` | Repeat-ride prefilled payload |
+| GET | `/api/v1/rides/{id}/invoice` | Invoice/receipt stub |
 | WS | `/api/v1/ws/rides/{id}?token=...` | Live status events |
 
 ## Ride status (Phase 1.5)
@@ -110,9 +122,9 @@ Cancel is allowed through `driver_arrived`; blocked once `in_progress`.
 
 With `OTP_DEBUG=true`, the OTP is returned in the API response as `debug_otp` and logged when `OTP_PROVIDER=console`.
 
-## Phase 1 demo
+## API demo
 
-`scripts/phase1_demo.py` runs an end-to-end walkthrough: Docker + DB setup, API health, auth (OTP), reverse geocode, fare estimate, profile, create ride (with idempotency), ride status/history, WebSocket cancel (Redis pub/sub), stats, and logout.
+`scripts/demo.py` runs an end-to-end walkthrough: Docker + DB setup, auth (OTP + refresh), profile, insights, addresses, settings, wallet/promo/referral/email, payment methods, ride booking (idempotency + WebSocket lifecycle), bookings (history, repeat, invoice), stats, and logout.
 
 ### One command (recommended)
 
@@ -147,6 +159,7 @@ DEMO_SKIP_SETUP=1 DEMO_SKIP_SERVER=1 ./scripts/dev.sh demo   # terminal 2
 | `DEMO_RESET_DB=1` | Wipe Postgres volume (`./scripts/dev.sh reset-db`) instead of `setup` |
 | `DEMO_SKIP_SETUP=1` | Skip Docker and migrate/seed (DB and containers must already be ready) |
 | `DEMO_SKIP_SERVER=1` | Do not start or restart uvicorn; API must already be on port 8000 |
+| `DEMO_SKIP_CANCEL=1` | Skip the create-and-cancel REST demo step |
 
 Examples:
 
@@ -167,22 +180,22 @@ Two optional UIs share state via `.demo_session.json` (tokens, `ride_id`, addres
 
 | Command | File | Usage |
 |---------|------|--------|
-| `demo-menu` | `scripts/phase1_demo_menu.py` | Menu: Health, Auth, Estimate, Create ride, WS listen, Cancel, … |
-| `demo-tui` | `scripts/phase1_demo_tui.py` | Same steps via keys `1`–`9`, `s` session, `r` reset, `q` quit |
+| `demo-menu` | `scripts/demo_menu.py` | Menu: rides, profile, insights, wallet, bookings, … |
+| `demo-tui` | `scripts/demo_tui.py` | Same steps via keyboard shortcuts |
 
 Subcommands (non-interactive):
 
 ```bash
-python scripts/phase1_demo_menu.py health
-python scripts/phase1_demo_menu.py auth
-python scripts/phase1_demo_menu.py ws-listen
+python scripts/demo_menu.py health
+python scripts/demo_menu.py auth
+python scripts/demo_menu.py insights
+python scripts/demo_menu.py ws-listen
 ```
 
 Requires `OTP_DEBUG=true` for Auth. Typical walkthrough: **2** Auth → **4** Estimate → **5** Create ride → **7** WS listen → **8** Cancel (or cancel from Swagger while WS is open).
 
 ### Notebook
 
-`scripts/phase1_demo.ipynb` is an optional cell-by-cell version of the same flow for VS Code / Jupyter.
 
 ## Tests
 
