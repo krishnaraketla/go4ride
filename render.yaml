@@ -52,6 +52,16 @@ services:
       - key: DEFAULT_CURRENCY
         value: INR
 
+  # Render's free Redis-compatible service is the "Key Value" instance.
+  # Persistence is unavailable on the free plan, which is fine for this app:
+  # Redis is used for OTP rate limits, idempotency keys, and WebSocket pub/sub.
+  - type: keyvalue
+    name: go4ride-cache
+    plan: free
+    region: singapore
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []              # internal connections only
+
 databases:
   - name: go4ride-postgres
     plan: free
@@ -59,12 +69,3 @@ databases:
     databaseName: go4ride
     user: go4ride
     ipAllowList: []              # private network only; not reachable from internet
-
-# Render's free Redis-compatible service is the "Key Value" instance.
-# Persistence is unavailable on the free plan, which is fine for this app:
-# Redis is used for OTP rate limits, idempotency keys, and WebSocket pub/sub.
-keyValueInstances:
-  - name: go4ride-cache
-    plan: free
-    region: singapore
-    ipAllowList: []
