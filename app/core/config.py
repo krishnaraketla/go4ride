@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     mock_driver_eta_min: int = 5
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    public_base_url: str | None = None
+    render_external_url: str | None = None
 
     default_currency: str = "INR"
     email_verify_bonus: Decimal = Field(default=Decimal("5.00"))

@@ -9,10 +9,6 @@
     {
       "url": "http://localhost:8000",
       "description": "Local development"
-    },
-    {
-      "url": "https://go4ride-api.onrender.com",
-      "description": "Render (example production)"
     }
   ],
   "paths": {

@@ -3,6 +3,8 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
+from app.core.config import Settings
+
 OPENAPI_TAGS = [
     {
         "name": "health",
@@ -58,11 +60,6 @@ OPENAPI_TAGS = [
     },
 ]
 
-OPENAPI_SERVERS = [
-    {"url": "http://localhost:8000", "description": "Local development"},
-    {"url": "https://go4ride-api.onrender.com", "description": "Render (example production)"},
-]
-
 OPENAPI_DESCRIPTION = """
 Ride-hailing **rider app** API (Phase 0–2). Driver and admin APIs are out of scope for this service.
 
@@ -94,7 +91,19 @@ Structured JSON errors: `{"detail": "...", "code": "..."}` with HTTP 4xx/5xx.
 """
 
 
-def configure_openapi(app: FastAPI) -> None:
+def get_openapi_servers(settings: Settings) -> list[dict[str, str]]:
+    """Build OpenAPI server list so Swagger calls the deployed host, not localhost."""
+    explicit = settings.public_base_url or settings.render_external_url
+    if explicit:
+        url = explicit.rstrip("/")
+        return [{"url": url, "description": "Current deployment"}]
+    if settings.app_env == "development":
+        return [{"url": "http://localhost:8000", "description": "Local development"}]
+    # Same-origin fallback when no public URL env is set.
+    return [{"url": "/", "description": "Current host"}]
+
+
+def configure_openapi(app: FastAPI, settings: Settings) -> None:
     """Attach a customized OpenAPI schema generator to the FastAPI app."""
 
     def custom_openapi():
@@ -107,7 +116,7 @@ def configure_openapi(app: FastAPI) -> None:
             description=app.description,
             routes=app.routes,
             tags=OPENAPI_TAGS,
-            servers=OPENAPI_SERVERS,
+            servers=get_openapi_servers(settings),
         )
 
         schemes = schema.setdefault("components", {}).setdefault("securitySchemes", {})
