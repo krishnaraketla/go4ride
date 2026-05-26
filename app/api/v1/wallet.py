@@ -16,5 +16,7 @@ async def get_wallet(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Get ride credit balance and currency."""
+
     balance, currency = await wallet_service.get_wallet_balance(db, rider.id)
     return WalletResponse(balance=balance, currency=currency)

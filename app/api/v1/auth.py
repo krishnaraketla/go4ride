@@ -60,6 +60,8 @@ async def verify_otp(body: VerifyOTPRequest, db: Annotated[AsyncSession, Depends
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(body: RefreshRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Exchange a refresh token for a new JWT pair."""
+
     user, access, refresh_token = await auth_service.refresh_tokens(db, body.refresh_token)
     return TokenResponse(
         access_token=access,
@@ -71,10 +73,14 @@ async def refresh(body: RefreshRequest, db: Annotated[AsyncSession, Depends(get_
 
 @router.post("/logout")
 async def logout(body: LogoutRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Revoke the refresh token (client should discard both tokens)."""
+
     await auth_service.logout(db, body.refresh_token)
     return {"message": "Logged out"}
 
 
 @router.get("/me")
 async def me(user: Annotated[User, Depends(get_current_user)]):
+    """Return the authenticated user's id, phone, name, and role."""
+
     return {"id": str(user.id), "phone": user.phone, "name": user.name, "role": user.role.value}

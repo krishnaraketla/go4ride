@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.openapi import OPENAPI_DESCRIPTION, configure_openapi
 from app.core.redis import close_redis
 from app.db.session import engine
 
@@ -26,10 +27,14 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="Go4Ride API",
-        version="0.1.0",
-        description="Ride-hailing backend for rider and driver apps",
+        version="0.2.0",
+        description=OPENAPI_DESCRIPTION,
         lifespan=lifespan,
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
     )
+    configure_openapi(app)
 
     app.add_middleware(
         CORSMiddleware,
@@ -55,8 +60,9 @@ def create_app() -> FastAPI:
             content={"detail": "Internal server error", "code": "INTERNAL_ERROR"},
         )
 
-    @app.get("/health")
+    @app.get("/health", tags=["health"], summary="Health check")
     async def health():
+        """Liveness probe for load balancers and Render."""
         return {"status": "ok"}
 
     app.include_router(api_router)

@@ -13,6 +13,8 @@ router = APIRouter(tags=["profile"])
 
 @router.get("/profile", response_model=ProfileResponse)
 async def get_profile(rider: Annotated[User, Depends(get_current_rider)]):
+    """Get the current rider's profile."""
+
     return ProfileResponse(
         id=rider.id,
         phone=rider.phone,
@@ -29,6 +31,8 @@ async def update_profile(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Update name, email, or avatar. Changing email resets verification."""
+
     user = await profile_service.update_profile(db, rider, body)
     return ProfileResponse(
         id=user.id,
@@ -45,4 +49,6 @@ async def stats(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Lifetime ride count, distance, and spend for the rider."""
+
     return await profile_service.get_rider_stats(db, rider.id)

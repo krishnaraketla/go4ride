@@ -16,6 +16,8 @@ async def send_verification(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Send a verification code to the rider's email (`debug_code` when in dev)."""
+
     debug_code = await email_service.send_verification(db, rider)
     return EmailVerificationSentResponse(
         message="Verification code sent",
@@ -29,5 +31,7 @@ async def verify_email(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Verify email and grant one-time wallet credit bonus."""
+
     await email_service.verify_email(db, rider, body.code)
     return {"message": "Email verified"}

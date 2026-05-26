@@ -24,6 +24,8 @@ async def apply_promo(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Apply a promo code and credit the wallet (e.g. seed code `WELCOME5`)."""
+
     wallet, credited = await wallet_service.apply_promo_code(db, rider.id, body.code)
     return PromoApplyResponse(
         balance=wallet.balance,
@@ -38,6 +40,8 @@ async def get_referral(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Get the rider's referral code and reward amount."""
+
     settings = get_settings()
     code = await wallet_service.ensure_referral_code(db, rider)
     return ReferralResponse(
@@ -53,5 +57,7 @@ async def partner_interest(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Record partner/franchise interest (stub)."""
+
     db.add(PartnerLead(user_id=rider.id, message=body.message))
     return {"message": "Interest recorded"}

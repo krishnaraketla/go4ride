@@ -26,12 +26,16 @@ router = APIRouter(tags=["rides"])
 
 @router.get("/ride-types", response_model=list[RideTypeResponse])
 async def list_ride_types(db: Annotated[AsyncSession, Depends(get_db)]):
+    """List active ride types (mini, sedan, bike, xl)."""
+
     result = await db.execute(select(RideType).where(RideType.is_active.is_(True)))
     return result.scalars().all()
 
 
 @router.post("/rides/estimate", response_model=RideEstimateResponse)
 async def estimate_ride(body: RideEstimateRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Get distance, duration, and fare quote for a route."""
+
     distance_km, duration_min, estimated, surge, currency = await ride_service.estimate_ride(
         db, body.pickup.lat, body.pickup.lng, body.drop.lat, body.drop.lng, body.ride_type_slug
     )
@@ -51,6 +55,8 @@ async def create_ride(
     db: Annotated[AsyncSession, Depends(get_db)],
     idempotency_key: Annotated[str | None, Depends(get_idempotency_key)] = None,
 ):
+    """Book a ride. Optional `Idempotency-Key` header prevents duplicate bookings."""
+
     return await ride_service.create_ride(db, rider, body, idempotency_key)
 
 
@@ -65,6 +71,8 @@ async def ride_history(
         description="terminal (default), all, completed, or cancelled",
     ),
 ):
+    """Paginated ride history for the Bookings screen."""
+
     items, total = await ride_service.get_ride_history(db, rider, page, limit, status)
     return RideHistoryResponse(items=items, page=page, limit=limit, total=total)
 
@@ -75,6 +83,8 @@ async def repeat_ride(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Return estimate + create payload to re-book a past ride."""
+
     return await ride_service.get_repeat_ride_payload(db, rider, ride_id)
 
 
@@ -84,6 +94,8 @@ async def cancel_ride(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Cancel an active ride owned by the current rider."""
+
     return await ride_service.cancel_ride(db, rider, ride_id)
 
 
@@ -93,6 +105,8 @@ async def ride_status(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Lightweight status poll (prefer WebSocket for live updates)."""
+
     return await ride_service.get_ride_status(db, rider, ride_id)
 
 
@@ -102,6 +116,8 @@ async def get_ride(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Full ride details including driver info when assigned."""
+
     return await ride_service.get_ride(db, rider, ride_id)
 
 
@@ -111,4 +127,6 @@ async def ride_invoice(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Receipt / invoice stub for completed rides."""
+
     return await ride_service.get_ride_invoice(db, rider, ride_id)

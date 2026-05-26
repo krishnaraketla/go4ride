@@ -16,6 +16,8 @@ async def get_settings(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Get notification and app preferences."""
+
     return await settings_service.get_settings(db, rider)
 
 
@@ -25,4 +27,6 @@ async def update_settings(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Update notification and app preferences."""
+
     return await settings_service.update_settings(db, rider, body)

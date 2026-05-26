@@ -56,7 +56,9 @@ uvicorn app.main:app --reload --port 8000
 | `cannot import name 'async_sessionmaker'` | Old SQLAlchemy in conda env | Same as above — install deps inside `.venv` only |
 | `role "go4ride" does not exist` | App hit **local** Postgres on 5432, not Docker | Use port **5433** in `DATABASE_URL` (see `.env.example`); run `docker compose up -d` |
 
-- Interactive docs: http://localhost:8000/docs
+- Interactive docs: http://localhost:8000/docs (Swagger UI)
+- ReDoc: http://localhost:8000/redoc
+- OpenAPI JSON: http://localhost:8000/openapi.json (static copy: [docs/openapi.json](docs/openapi.json))
 - API reference (Markdown): [docs/API.md](docs/API.md)
 - Endpoint list (tables): [docs/API_endpoints.md](docs/API_endpoints.md)
 - Deploy to Render (free tier): [docs/DEPLOY.md](docs/DEPLOY.md)
@@ -65,7 +67,8 @@ uvicorn app.main:app --reload --port 8000
 ## API documentation
 
 Full endpoint reference with request/response examples: **[docs/API.md](docs/API.md)**  
-Quick endpoint tables by area: **[docs/API_endpoints.md](docs/API_endpoints.md)**
+Quick endpoint tables by area: **[docs/API_endpoints.md](docs/API_endpoints.md)**  
+OpenAPI spec (Swagger): **[docs/openapi.json](docs/openapi.json)** — regenerate with `python scripts/export_openapi.py`
 
 Quick list:
 

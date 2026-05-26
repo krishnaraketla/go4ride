@@ -17,4 +17,6 @@ async def insights(
     db: Annotated[AsyncSession, Depends(get_db)],
     period: Literal["weekly", "monthly"] = Query("weekly"),
 ):
+    """Weekly or monthly ride analytics (`?period=weekly|monthly`)."""
+
     return await insights_service.get_insights(db, rider.id, period)

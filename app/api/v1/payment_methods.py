@@ -21,6 +21,8 @@ async def list_payment_methods(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """List saved payment methods (stub metadata only)."""
+
     return await payment_method_service.list_payment_methods(db, rider)
 
 
@@ -30,6 +32,8 @@ async def create_payment_method(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Add card metadata (last4, brand — no PAN storage)."""
+
     return await payment_method_service.create_payment_method(db, rider, body)
 
 
@@ -40,6 +44,8 @@ async def update_payment_method(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Set the default payment method."""
+
     return await payment_method_service.update_payment_method(db, rider, method_id, body)
 
 
@@ -49,5 +55,7 @@ async def delete_payment_method(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Remove a saved payment method."""
+
     await payment_method_service.delete_payment_method(db, rider, method_id)
     return {"message": "Payment method deleted"}

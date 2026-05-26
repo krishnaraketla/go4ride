@@ -1,0 +1,3402 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Go4Ride API",
+    "description": "\nRide-hailing **rider app** API (Phase 0\u20132). Driver and admin APIs are out of scope for this service.\n\n## Authentication\n\n1. `POST /api/v1/auth/request-otp` \u2014 send OTP to phone (`debug_otp` returned when `OTP_DEBUG=true`)\n2. `POST /api/v1/auth/verify-otp` \u2014 exchange OTP for JWT pair; creates account on first sign-in\n3. Click **Authorize** and paste the `access_token` (Bearer, no prefix)\n4. `POST /api/v1/auth/refresh` \u2014 new token pair using `refresh_token` in body (no header)\n\n## Typical booking flow\n\n1. Reverse geocode (optional) \u2192 list ride types \u2192 estimate fare\n2. `POST /api/v1/rides` with optional `Idempotency-Key` header\n3. `WS /api/v1/ws/rides/{ride_id}?token={access_token}` for live updates\n4. Cancel, history, repeat, or fetch invoice as needed\n\n## WebSocket\n\n```\nWS /api/v1/ws/rides/{ride_id}?token=<access_token>\n```\n\nEvents are JSON payloads published on ride status changes (mock driver advances stages in dev).\n\n## Errors\n\nStructured JSON errors: `{\"detail\": \"...\", \"code\": \"...\"}` with HTTP 4xx/5xx.\n",
+    "version": "0.2.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development"
+    },
+    {
+      "url": "https://go4ride-api.onrender.com",
+      "description": "Render (example production)"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health check",
+        "description": "Liveness probe for load balancers and Render.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/request-otp": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Request Otp",
+        "description": "Send an OTP to the given phone. Works for both new and returning riders.\n\nThe client should follow up with `POST /auth/verify-otp`. `is_new_user`\ntells the UI whether to show an onboarding step (e.g. ask for name) after\nverification.",
+        "operationId": "request_otp_api_v1_auth_request_otp_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestOTPRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OTPSentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-otp": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verify Otp",
+        "description": "Verify OTP and return JWTs. Creates the rider account if first-time.",
+        "operationId": "verify_otp_api_v1_auth_verify_otp_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOTPRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Refresh",
+        "description": "Exchange a refresh token for a new JWT pair.",
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "Revoke the refresh token (client should discard both tokens).",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "description": "Return the authenticated user's id, phone, name, and role.",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/location/reverse-geocode": {
+      "get": {
+        "tags": [
+          "location"
+        ],
+        "summary": "Reverse Geocode",
+        "description": "Resolve coordinates to a formatted address string.",
+        "operationId": "reverse_geocode_api_v1_location_reverse_geocode_get",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 90.0,
+                  "minimum": -90.0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 180.0,
+                  "minimum": -180.0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "title": "Lng"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReverseGeocodeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ride-types": {
+      "get": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "List Ride Types",
+        "description": "List active ride types (mini, sedan, bike, xl).",
+        "operationId": "list_ride_types_api_v1_ride_types_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RideTypeResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Ride Types Api V1 Ride Types Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rides/estimate": {
+      "post": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "Estimate Ride",
+        "description": "Get distance, duration, and fare quote for a route.",
+        "operationId": "estimate_ride_api_v1_rides_estimate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RideEstimateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideEstimateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rides": {
+      "post": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "Create Ride",
+        "description": "Book a ride. Optional `Idempotency-Key` header prevents duplicate bookings.",
+        "operationId": "create_ride_api_v1_rides_post",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRideRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rides/history": {
+      "get": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "Ride History",
+        "description": "Paginated ride history for the Bookings screen.",
+        "operationId": "ride_history_api_v1_rides_history_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "terminal (default), all, completed, or cancelled",
+              "default": "terminal",
+              "title": "Status"
+            },
+            "description": "terminal (default), all, completed, or cancelled"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideHistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rides/{ride_id}/repeat": {
+      "post": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "Repeat Ride",
+        "description": "Return estimate + create payload to re-book a past ride.",
+        "operationId": "repeat_ride_api_v1_rides__ride_id__repeat_post",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ride_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ride Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepeatRideResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rides/{ride_id}/cancel": {
+      "post": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "Cancel Ride",
+        "description": "Cancel an active ride owned by the current rider.",
+        "operationId": "cancel_ride_api_v1_rides__ride_id__cancel_post",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ride_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ride Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rides/{ride_id}/status": {
+      "get": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "Ride Status",
+        "description": "Lightweight status poll (prefer WebSocket for live updates).",
+        "operationId": "ride_status_api_v1_rides__ride_id__status_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ride_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ride Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rides/{ride_id}": {
+      "get": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "Get Ride",
+        "description": "Full ride details including driver info when assigned.",
+        "operationId": "get_ride_api_v1_rides__ride_id__get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ride_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ride Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rides/{ride_id}/invoice": {
+      "get": {
+        "tags": [
+          "rides"
+        ],
+        "summary": "Ride Invoice",
+        "description": "Receipt / invoice stub for completed rides.",
+        "operationId": "ride_invoice_api_v1_rides__ride_id__invoice_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ride_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ride Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profile": {
+      "get": {
+        "tags": [
+          "profile"
+        ],
+        "summary": "Get Profile",
+        "description": "Get the current rider's profile.",
+        "operationId": "get_profile_api_v1_profile_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "profile"
+        ],
+        "summary": "Update Profile",
+        "description": "Update name, email, or avatar. Changing email resets verification.",
+        "operationId": "update_profile_api_v1_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats": {
+      "get": {
+        "tags": [
+          "profile"
+        ],
+        "summary": "Stats",
+        "description": "Lifetime ride count, distance, and spend for the rider.",
+        "operationId": "stats_api_v1_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/insights": {
+      "get": {
+        "tags": [
+          "insights"
+        ],
+        "summary": "Insights",
+        "description": "Weekly or monthly ride analytics (`?period=weekly|monthly`).",
+        "operationId": "insights_api_v1_insights_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "weekly",
+                "monthly"
+              ],
+              "type": "string",
+              "default": "weekly",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsightsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/addresses": {
+      "get": {
+        "tags": [
+          "addresses"
+        ],
+        "summary": "List Addresses",
+        "description": "List saved addresses; pass `lat`/`lng` to sort by distance.",
+        "operationId": "list_addresses_api_v1_addresses_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lng"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AddressResponse"
+                  },
+                  "title": "Response List Addresses Api V1 Addresses Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "addresses"
+        ],
+        "summary": "Create Address",
+        "description": "Create a saved address (max 10 per user).",
+        "operationId": "create_address_api_v1_addresses_post",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/addresses/{address_id}": {
+      "patch": {
+        "tags": [
+          "addresses"
+        ],
+        "summary": "Update Address",
+        "description": "Update label, coordinates, or default flag on a saved address.",
+        "operationId": "update_address_api_v1_addresses__address_id__patch",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "address_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Address Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "addresses"
+        ],
+        "summary": "Delete Address",
+        "description": "Delete a saved address.",
+        "operationId": "delete_address_api_v1_addresses__address_id__delete",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "address_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Address Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Settings",
+        "description": "Get notification and app preferences.",
+        "operationId": "get_settings_api_v1_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update Settings",
+        "description": "Update notification and app preferences.",
+        "operationId": "update_settings_api_v1_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/wallet": {
+      "get": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "Get Wallet",
+        "description": "Get ride credit balance and currency.",
+        "operationId": "get_wallet_api_v1_wallet_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/promo/apply": {
+      "post": {
+        "tags": [
+          "promo"
+        ],
+        "summary": "Apply Promo",
+        "description": "Apply a promo code and credit the wallet (e.g. seed code `WELCOME5`).",
+        "operationId": "apply_promo_api_v1_promo_apply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromoApplyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/referral": {
+      "get": {
+        "tags": [
+          "promo"
+        ],
+        "summary": "Get Referral",
+        "description": "Get the rider's referral code and reward amount.",
+        "operationId": "get_referral_api_v1_referral_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/partner/interest": {
+      "post": {
+        "tags": [
+          "promo"
+        ],
+        "summary": "Partner Interest",
+        "description": "Record partner/franchise interest (stub).",
+        "operationId": "partner_interest_api_v1_partner_interest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartnerInterestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/email/send-verification": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "summary": "Send Verification",
+        "description": "Send a verification code to the rider's email (`debug_code` when in dev).",
+        "operationId": "send_verification_api_v1_email_send_verification_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailVerificationSentResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/email/verify": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "summary": "Verify Email",
+        "description": "Verify email and grant one-time wallet credit bonus.",
+        "operationId": "verify_email_api_v1_email_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/payment-methods": {
+      "get": {
+        "tags": [
+          "payment-methods"
+        ],
+        "summary": "List Payment Methods",
+        "description": "List saved payment methods (stub metadata only).",
+        "operationId": "list_payment_methods_api_v1_payment_methods_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentMethodResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Payment Methods Api V1 Payment Methods Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "payment-methods"
+        ],
+        "summary": "Create Payment Method",
+        "description": "Add card metadata (last4, brand \u2014 no PAN storage).",
+        "operationId": "create_payment_method_api_v1_payment_methods_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/payment-methods/{method_id}": {
+      "patch": {
+        "tags": [
+          "payment-methods"
+        ],
+        "summary": "Update Payment Method",
+        "description": "Set the default payment method.",
+        "operationId": "update_payment_method_api_v1_payment_methods__method_id__patch",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Method Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "payment-methods"
+        ],
+        "summary": "Delete Payment Method",
+        "description": "Remove a saved payment method.",
+        "operationId": "delete_payment_method_api_v1_payment_methods__method_id__delete",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Method Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddressCreateRequest": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "address_line": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Address Line"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Lng"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "address_line",
+          "lat",
+          "lng"
+        ],
+        "title": "AddressCreateRequest"
+      },
+      "AddressResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "address_line": {
+            "type": "string",
+            "title": "Address Line"
+          },
+          "lat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Lng"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "address_line",
+          "lat",
+          "lng",
+          "is_default",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AddressResponse"
+      },
+      "AddressUpdateRequest": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "address_line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Line"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default"
+          }
+        },
+        "type": "object",
+        "title": "AddressUpdateRequest"
+      },
+      "Coordinates-Input": {
+        "properties": {
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Lng"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng"
+        ],
+        "title": "Coordinates"
+      },
+      "Coordinates-Output": {
+        "properties": {
+          "lat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Lng"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng"
+        ],
+        "title": "Coordinates"
+      },
+      "CreateRideRequest": {
+        "properties": {
+          "pickup": {
+            "$ref": "#/components/schemas/Coordinates-Input"
+          },
+          "drop": {
+            "$ref": "#/components/schemas/Coordinates-Input"
+          },
+          "pickup_address": {
+            "type": "string",
+            "title": "Pickup Address"
+          },
+          "drop_address": {
+            "type": "string",
+            "title": "Drop Address"
+          },
+          "ride_type_slug": {
+            "type": "string",
+            "title": "Ride Type Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pickup",
+          "drop",
+          "pickup_address",
+          "drop_address",
+          "ride_type_slug"
+        ],
+        "title": "CreateRideRequest",
+        "examples": [
+          {
+            "drop": {
+              "lat": "12.9352",
+              "lng": "77.6245"
+            },
+            "drop_address": "Koramangala, Bengaluru",
+            "pickup": {
+              "lat": "12.9716",
+              "lng": "77.5946"
+            },
+            "pickup_address": "MG Road, Bengaluru",
+            "ride_type_slug": "mini"
+          }
+        ]
+      },
+      "DistributionItem": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "percent": {
+            "type": "number",
+            "title": "Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "count",
+          "percent"
+        ],
+        "title": "DistributionItem"
+      },
+      "DriverSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "vehicle_model": {
+            "type": "string",
+            "title": "Vehicle Model"
+          },
+          "vehicle_plate": {
+            "type": "string",
+            "title": "Vehicle Plate"
+          },
+          "vehicle_color": {
+            "type": "string",
+            "title": "Vehicle Color"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "eta_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "vehicle_model",
+          "vehicle_plate",
+          "vehicle_color"
+        ],
+        "title": "DriverSummary"
+      },
+      "EmailVerificationSentResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "debug_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debug Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "EmailVerificationSentResponse"
+      },
+      "EmailVerifyRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "EmailVerifyRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InsightsResponse": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "rides_count": {
+            "type": "integer",
+            "title": "Rides Count"
+          },
+          "total_km": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Km"
+          },
+          "total_spend": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Spend"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/TrendPoint"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "comparison_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Pct"
+          },
+          "distribution": {
+            "items": {
+              "$ref": "#/components/schemas/DistributionItem"
+            },
+            "type": "array",
+            "title": "Distribution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "rides_count",
+          "total_km",
+          "total_spend",
+          "currency",
+          "trend",
+          "comparison_pct",
+          "distribution"
+        ],
+        "title": "InsightsResponse"
+      },
+      "InvoiceResponse": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "ride_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ride Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "pickup_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Address"
+          },
+          "drop_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drop Address"
+          },
+          "final_fare": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Fare"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "driver": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "title": "InvoiceResponse"
+      },
+      "LogoutRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "LogoutRequest"
+      },
+      "OTPSentResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "expires_in_minutes": {
+            "type": "integer",
+            "title": "Expires In Minutes"
+          },
+          "is_new_user": {
+            "type": "boolean",
+            "title": "Is New User"
+          },
+          "debug_otp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debug Otp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "expires_in_minutes",
+          "is_new_user"
+        ],
+        "title": "OTPSentResponse"
+      },
+      "PartnerInterestRequest": {
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "title": "PartnerInterestRequest"
+      },
+      "PaymentMethodCreateRequest": {
+        "properties": {
+          "brand": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Brand"
+          },
+          "last4": {
+            "type": "string",
+            "maxLength": 4,
+            "minLength": 4,
+            "pattern": "^\\d{4}$",
+            "title": "Last4"
+          },
+          "exp_month": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Exp Month"
+          },
+          "exp_year": {
+            "type": "integer",
+            "maximum": 2099.0,
+            "minimum": 2024.0,
+            "title": "Exp Year"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "brand",
+          "last4",
+          "exp_month",
+          "exp_year"
+        ],
+        "title": "PaymentMethodCreateRequest"
+      },
+      "PaymentMethodResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "brand": {
+            "type": "string",
+            "title": "Brand"
+          },
+          "last4": {
+            "type": "string",
+            "title": "Last4"
+          },
+          "exp_month": {
+            "type": "integer",
+            "title": "Exp Month"
+          },
+          "exp_year": {
+            "type": "integer",
+            "title": "Exp Year"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "brand",
+          "last4",
+          "exp_month",
+          "exp_year",
+          "is_default",
+          "created_at"
+        ],
+        "title": "PaymentMethodResponse"
+      },
+      "PaymentMethodUpdateRequest": {
+        "properties": {
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default"
+          }
+        },
+        "type": "object",
+        "title": "PaymentMethodUpdateRequest"
+      },
+      "ProfileResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "phone",
+          "email",
+          "name",
+          "avatar_url",
+          "role"
+        ],
+        "title": "ProfileResponse"
+      },
+      "ProfileUpdateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          }
+        },
+        "type": "object",
+        "title": "ProfileUpdateRequest"
+      },
+      "PromoApplyRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "PromoApplyRequest"
+      },
+      "PromoApplyResponse": {
+        "properties": {
+          "balance": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Balance"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "credited": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Credited"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance",
+          "currency",
+          "credited",
+          "message"
+        ],
+        "title": "PromoApplyResponse"
+      },
+      "ReferralResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "reward_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reward Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "reward_amount",
+          "currency"
+        ],
+        "title": "ReferralResponse"
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshRequest"
+      },
+      "RepeatRideResponse": {
+        "properties": {
+          "pickup": {
+            "$ref": "#/components/schemas/Coordinates-Output"
+          },
+          "drop": {
+            "$ref": "#/components/schemas/Coordinates-Output"
+          },
+          "pickup_address": {
+            "type": "string",
+            "title": "Pickup Address"
+          },
+          "drop_address": {
+            "type": "string",
+            "title": "Drop Address"
+          },
+          "ride_type_slug": {
+            "type": "string",
+            "title": "Ride Type Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pickup",
+          "drop",
+          "pickup_address",
+          "drop_address",
+          "ride_type_slug"
+        ],
+        "title": "RepeatRideResponse"
+      },
+      "RequestOTPRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 15,
+            "minLength": 10,
+            "title": "Phone",
+            "examples": [
+              "9876543210"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "title": "RequestOTPRequest",
+        "description": "Single-step OTP request \u2014 used for both first-time sign-up and returning login.",
+        "examples": [
+          {
+            "phone": "9876543210"
+          }
+        ]
+      },
+      "ReverseGeocodeResponse": {
+        "properties": {
+          "lat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Lng"
+          },
+          "formatted_address": {
+            "type": "string",
+            "title": "Formatted Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng",
+          "formatted_address"
+        ],
+        "title": "ReverseGeocodeResponse"
+      },
+      "RideEstimateRequest": {
+        "properties": {
+          "pickup": {
+            "$ref": "#/components/schemas/Coordinates-Input"
+          },
+          "drop": {
+            "$ref": "#/components/schemas/Coordinates-Input"
+          },
+          "ride_type_slug": {
+            "type": "string",
+            "title": "Ride Type Slug",
+            "examples": [
+              "mini",
+              "sedan",
+              "bike",
+              "xl"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "pickup",
+          "drop",
+          "ride_type_slug"
+        ],
+        "title": "RideEstimateRequest",
+        "examples": [
+          {
+            "drop": {
+              "lat": "12.9352",
+              "lng": "77.6245"
+            },
+            "pickup": {
+              "lat": "12.9716",
+              "lng": "77.5946"
+            },
+            "ride_type_slug": "mini"
+          }
+        ]
+      },
+      "RideEstimateResponse": {
+        "properties": {
+          "distance_km": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Distance Km"
+          },
+          "duration_min": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duration Min"
+          },
+          "estimated_fare": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimated Fare"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "surge_multiplier": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Surge Multiplier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distance_km",
+          "duration_min",
+          "estimated_fare",
+          "currency",
+          "surge_multiplier"
+        ],
+        "title": "RideEstimateResponse"
+      },
+      "RideHistoryResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RideResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "limit",
+          "total"
+        ],
+        "title": "RideHistoryResponse"
+      },
+      "RideResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "pickup_lat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pickup Lat"
+          },
+          "pickup_lng": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pickup Lng"
+          },
+          "pickup_address": {
+            "type": "string",
+            "title": "Pickup Address"
+          },
+          "drop_lat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Drop Lat"
+          },
+          "drop_lng": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Drop Lng"
+          },
+          "drop_address": {
+            "type": "string",
+            "title": "Drop Address"
+          },
+          "estimated_fare": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimated Fare"
+          },
+          "final_fare": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Fare"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
+          },
+          "surge_multiplier": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Surge Multiplier"
+          },
+          "ride_type_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ride Type Slug"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          },
+          "driver_assigned_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Assigned At"
+          },
+          "driver_arrived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Arrived At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "driver": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_available": {
+            "type": "boolean",
+            "title": "Invoice Available",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "pickup_lat",
+          "pickup_lng",
+          "pickup_address",
+          "drop_lat",
+          "drop_lng",
+          "drop_address",
+          "estimated_fare",
+          "final_fare",
+          "distance_km",
+          "duration_min",
+          "surge_multiplier",
+          "requested_at"
+        ],
+        "title": "RideResponse"
+      },
+      "RideStatusResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "driver": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "RideStatusResponse"
+      },
+      "RideTypeResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "icon_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "icon_url"
+        ],
+        "title": "RideTypeResponse"
+      },
+      "SettingsResponse": {
+        "properties": {
+          "notifications_enabled": {
+            "type": "boolean",
+            "title": "Notifications Enabled"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "notifications_enabled",
+          "language"
+        ],
+        "title": "SettingsResponse"
+      },
+      "SettingsUpdateRequest": {
+        "properties": {
+          "notifications_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notifications Enabled"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "title": "SettingsUpdateRequest"
+      },
+      "StatsResponse": {
+        "properties": {
+          "total_rides": {
+            "type": "integer",
+            "title": "Total Rides"
+          },
+          "completed_rides": {
+            "type": "integer",
+            "title": "Completed Rides"
+          },
+          "total_spend": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Spend"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "INR"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_rides",
+          "completed_rides",
+          "total_spend"
+        ],
+        "title": "StatsResponse"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "is_new_user": {
+            "type": "boolean",
+            "title": "Is New User",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "user_id",
+          "role"
+        ],
+        "title": "TokenResponse"
+      },
+      "TrendPoint": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "ride_count": {
+            "type": "integer",
+            "title": "Ride Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "date",
+          "ride_count"
+        ],
+        "title": "TrendPoint"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VerifyOTPRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 15,
+            "minLength": 10,
+            "title": "Phone"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 4,
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "fcm_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fcm Token"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "referral_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referral Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone",
+          "code"
+        ],
+        "title": "VerifyOTPRequest",
+        "examples": [
+          {
+            "code": "123456",
+            "name": "Ravi Kumar",
+            "phone": "9876543210"
+          }
+        ]
+      },
+      "WalletResponse": {
+        "properties": {
+          "balance": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Balance"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance",
+          "currency"
+        ],
+        "title": "WalletResponse"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "JWT access token from `POST /api/v1/auth/verify-otp`. Paste the token only (Swagger adds the Bearer prefix)."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Service liveness (outside `/api/v1`)."
+    },
+    {
+      "name": "auth",
+      "description": "Phone OTP login, JWT refresh, and logout. Use **Authorize** with the `access_token` from verify-otp."
+    },
+    {
+      "name": "profile",
+      "description": "Rider profile and lifetime ride statistics."
+    },
+    {
+      "name": "insights",
+      "description": "Weekly and monthly ride analytics for the rider home screen."
+    },
+    {
+      "name": "addresses",
+      "description": "Saved pickup/drop addresses (max 10 per user)."
+    },
+    {
+      "name": "settings",
+      "description": "Notification and app preferences."
+    },
+    {
+      "name": "wallet",
+      "description": "Ride credit balance."
+    },
+    {
+      "name": "promo",
+      "description": "Promo codes, referral rewards, and partner interest (stub)."
+    },
+    {
+      "name": "email",
+      "description": "Email verification and one-time credit bonus."
+    },
+    {
+      "name": "payment-methods",
+      "description": "Saved card metadata (stub \u2014 no PAN storage)."
+    },
+    {
+      "name": "location",
+      "description": "Reverse geocoding for map pins."
+    },
+    {
+      "name": "rides",
+      "description": "Fare estimates, booking lifecycle, history, invoices, and repeat ride."
+    },
+    {
+      "name": "websocket",
+      "description": "Live ride status over WebSocket (not listed below \u2014 connect manually)."
+    }
+  ]
+}

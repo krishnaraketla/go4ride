@@ -20,6 +20,8 @@ async def list_addresses(
     lat: Decimal | None = Query(None),
     lng: Decimal | None = Query(None),
 ):
+    """List saved addresses; pass `lat`/`lng` to sort by distance."""
+
     return await address_service.list_addresses(db, rider, lat, lng)
 
 
@@ -29,6 +31,8 @@ async def create_address(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Create a saved address (max 10 per user)."""
+
     return await address_service.create_address(db, rider, body)
 
 
@@ -39,6 +43,8 @@ async def update_address(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Update label, coordinates, or default flag on a saved address."""
+
     return await address_service.update_address(db, rider, address_id, body)
 
 
@@ -48,5 +54,7 @@ async def delete_address(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Delete a saved address."""
+
     await address_service.delete_address(db, rider, address_id)
     return {"message": "Address deleted"}

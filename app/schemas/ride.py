@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Coordinates(BaseModel):
@@ -11,9 +11,21 @@ class Coordinates(BaseModel):
 
 
 class RideEstimateRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "pickup": {"lat": "12.9716", "lng": "77.5946"},
+                    "drop": {"lat": "12.9352", "lng": "77.6245"},
+                    "ride_type_slug": "mini",
+                }
+            ]
+        },
+    )
+
     pickup: Coordinates
     drop: Coordinates
-    ride_type_slug: str
+    ride_type_slug: str = Field(..., examples=["mini", "sedan", "bike", "xl"])
 
 
 class RideEstimateResponse(BaseModel):
@@ -35,6 +47,20 @@ class RideTypeResponse(BaseModel):
 
 
 class CreateRideRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "pickup": {"lat": "12.9716", "lng": "77.5946"},
+                    "drop": {"lat": "12.9352", "lng": "77.6245"},
+                    "pickup_address": "MG Road, Bengaluru",
+                    "drop_address": "Koramangala, Bengaluru",
+                    "ride_type_slug": "mini",
+                }
+            ]
+        },
+    )
+
     pickup: Coordinates
     drop: Coordinates
     pickup_address: str
