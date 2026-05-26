@@ -4,20 +4,18 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import get_settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_otp(code: str) -> str:
-    return pwd_context.hash(code)
+    return bcrypt.hashpw(code.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_otp(code: str, code_hash: str) -> bool:
-    return pwd_context.verify(code, code_hash)
+    return bcrypt.checkpw(code.encode(), code_hash.encode())
 
 
 def generate_otp(length: int = 6) -> str:
