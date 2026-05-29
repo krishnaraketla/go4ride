@@ -52,8 +52,14 @@ class LogoutRequest(BaseModel):
     refresh_token: str
 
 
-class OTPSentResponse(BaseModel):
-    message: str
+class OTPSentData(BaseModel):
     expires_in_minutes: int
     is_new_user: bool
     debug_otp: str | None = None
+
+
+class MeResponse(BaseModel):
+    id: str
+    phone: str
+    name: str | None
+    role: str

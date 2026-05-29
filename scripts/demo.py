@@ -179,11 +179,16 @@ def safe_step(label: str, fn, session: DemoSession | None = None) -> bool:
         return False
 
 
-def assert_ok(response: httpx.Response, step: str) -> dict[str, Any]:
+def assert_ok(response: httpx.Response, step: str) -> Any:
     if response.is_error:
         print(f"FAILED [{step}] {response.status_code}: {response.text}", file=sys.stderr)
         response.raise_for_status()
-    return response.json()
+    body = response.json()
+    if isinstance(body, dict) and "success" in body:
+        if not body.get("success"):
+            response.raise_for_status()
+        return body.get("data")
+    return body
 
 
 def require_api() -> None:

@@ -11,6 +11,7 @@ from starlette.testclient import TestClient
 
 from app.core.redis import close_redis
 from app.main import app
+from tests.api_helpers import api_json
 
 API = "/api/v1"
 PICKUP = {"lat": "12.9716", "lng": "77.5946"}
@@ -65,7 +66,8 @@ def _reset_clients() -> None:
 def _register_and_token(client: TestClient, phone: str) -> str:
     otp_req = client.post(f"{API}/auth/request-otp", json={"phone": phone})
     assert otp_req.status_code == 200, otp_req.text
-    debug_otp = otp_req.json().get("debug_otp")
+    otp_data = api_json(otp_req)
+    debug_otp = otp_data.get("debug_otp")
     assert debug_otp, "OTP_DEBUG must be true for integration tests"
     verify = client.post(
         f"{API}/auth/verify-otp",
@@ -76,7 +78,7 @@ def _register_and_token(client: TestClient, phone: str) -> str:
         },
     )
     assert verify.status_code == 200, verify.text
-    return verify.json()["access_token"]
+    return api_json(verify)["access_token"]
 
 
 def test_full_mock_lifecycle(client: TestClient) -> None:
@@ -96,8 +98,9 @@ def test_full_mock_lifecycle(client: TestClient) -> None:
         },
     )
     assert create.status_code == 200, create.text
-    ride_id = create.json()["id"]
-    assert create.json()["status"] == "searching_driver"
+    created = api_json(create)
+    ride_id = created["id"]
+    assert created["status"] == "searching_driver"
 
     statuses: list[str] = []
     with client.websocket_connect(f"/api/v1/ws/rides/{ride_id}?token={token}") as ws:
@@ -116,7 +119,7 @@ def test_full_mock_lifecycle(client: TestClient) -> None:
 
     detail = client.get(f"{API}/rides/{ride_id}", headers=headers)
     assert detail.status_code == 200
-    body = detail.json()
+    body = api_json(detail)
     assert body["status"] == "completed"
     assert body["driver"] is not None
     assert body["driver"]["vehicle_plate"] == "KA01AB1234"
@@ -124,7 +127,7 @@ def test_full_mock_lifecycle(client: TestClient) -> None:
 
     history = client.get(f"{API}/rides/history", headers=headers, params={"limit": 5})
     assert history.status_code == 200
-    items = history.json()["items"]
+    items = api_json(history)["items"]
     assert any(i["id"] == ride_id and i["status"] == "completed" for i in items)
 
 
@@ -145,20 +148,20 @@ def test_cancel_after_driver_assigned(client: TestClient) -> None:
         },
     )
     assert create.status_code == 200
-    ride_id = create.json()["id"]
+    ride_id = api_json(create)["id"]
 
     for _ in range(20):
         time.sleep(0.5)
         status_resp = client.get(f"{API}/rides/{ride_id}/status", headers=headers)
-        if status_resp.json()["status"] == "driver_assigned":
+        if api_json(status_resp)["status"] == "driver_assigned":
             break
     else:
         pytest.fail("Ride did not reach driver_assigned in time")
 
     cancel = client.post(f"{API}/rides/{ride_id}/cancel", headers=headers)
     assert cancel.status_code == 200
-    assert cancel.json()["status"] == "cancelled"
+    assert api_json(cancel)["status"] == "cancelled"
 
     time.sleep(2.0)
     status_resp = client.get(f"{API}/rides/{ride_id}/status", headers=headers)
-    assert status_resp.json()["status"] == "cancelled"
+    assert api_json(status_resp)["status"] == "cancelled"

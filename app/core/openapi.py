@@ -85,9 +85,17 @@ WS /api/v1/ws/rides/{ride_id}?token=<access_token>
 
 Events are JSON payloads published on ride status changes (mock driver advances stages in dev).
 
-## Errors
+## Response envelope
 
-Structured JSON errors: `{"detail": "...", "code": "..."}` with HTTP 4xx/5xx.
+All `/api/v1` JSON endpoints return:
+
+```json
+{ "success": true, "message": "...", "data": { } }
+```
+
+Errors use the same shape with `success: false` and `data.code` (plus optional `data.errors` for validation).
+
+`/health` is unwrapped: `{"status": "ok"}`.
 """
 
 

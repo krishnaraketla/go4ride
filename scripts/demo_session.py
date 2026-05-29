@@ -83,10 +83,20 @@ def require_api() -> None:
         ) from exc
 
 
-def assert_ok(response: httpx.Response, step: str) -> dict[str, Any]:
+def assert_ok(response: httpx.Response, step: str) -> Any:
     if response.is_error:
+        body = response.json() if response.content else {}
+        if isinstance(body, dict) and body.get("success") is False:
+            code = (body.get("data") or {}).get("code")
+            raise RuntimeError(f"[{step}] {response.status_code}: {body.get('message')} ({code})")
         raise RuntimeError(f"[{step}] {response.status_code}: {response.text}")
-    return response.json()
+    body = response.json()
+    if isinstance(body, dict) and "success" in body:
+        if not body.get("success"):
+            code = (body.get("data") or {}).get("code")
+            raise RuntimeError(f"[{step}]: {body.get('message')} ({code})")
+        return body.get("data")
+    return body
 
 
 def step_health() -> dict[str, Any]:
@@ -283,13 +293,13 @@ def step_logout(session: DemoSession) -> dict[str, Any]:
     if not session.refresh_token:
         raise RuntimeError("No refresh token in session.")
     with httpx.Client(timeout=15.0) as client:
-        resp = client.post(
-            f"{API}/auth/logout",
-            json={"refresh_token": session.refresh_token},
+        data = assert_ok(
+            client.post(
+                f"{API}/auth/logout",
+                json={"refresh_token": session.refresh_token},
+            ),
+            "logout",
         )
-        if resp.status_code != 200:
-            raise RuntimeError(f"logout failed: {resp.text}")
-        data = resp.json()
     session.access_token = None
     session.refresh_token = None
     session.save()

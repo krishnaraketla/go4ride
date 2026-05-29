@@ -133,7 +133,9 @@ and returning login:
 
 ## OTP in development
 
-With `OTP_DEBUG=true`, the OTP is returned in the API response as `debug_otp` and logged when `OTP_PROVIDER=console`.
+With `OTP_DEBUG=true`, the OTP is returned in `data.debug_otp` on the request-otp response and logged when `OTP_PROVIDER=console`.
+
+All `/api/v1` JSON responses use `{ "success", "message", "data" }` — see [docs/API.md](docs/API.md#response-envelope).
 
 ## API demo
 

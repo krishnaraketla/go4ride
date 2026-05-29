@@ -8,6 +8,8 @@ Interactive OpenAPI: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 Full reference with request/response examples: [API.md](./API.md)
 
+All `/api/v1` JSON responses use `{ "success", "message", "data" }` (see [Response envelope](./API.md#response-envelope)). `/health` is unwrapped.
+
 ---
 
 ## Summary
@@ -35,7 +37,7 @@ Full reference with request/response examples: [API.md](./API.md)
 | Area | Method | Path | Auth | Description |
 |------|--------|------|------|-------------|
 | Health | `GET` | `/health` | None | Liveness check |
-| Auth | `POST` | `/api/v1/auth/request-otp` | None | Send OTP for a phone (sign-up + login in one step). Response includes `is_new_user`. |
+| Auth | `POST` | `/api/v1/auth/request-otp` | None | Send OTP for a phone (sign-up + login in one step). `data` includes `is_new_user`. |
 | Auth | `POST` | `/api/v1/auth/verify-otp` | None | Verify OTP → JWTs. Creates the rider account on first sign-in. `name` / `referral_code` optional and only applied for new users. |
 | Auth | `POST` | `/api/v1/auth/refresh` | None* | Exchange refresh token for new token pair |
 | Auth | `POST` | `/api/v1/auth/logout` | None* | Revoke refresh token (body) |

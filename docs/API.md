@@ -42,6 +42,40 @@ Driver matching APIs are **not** included in this version. In development (`MOCK
 
 ---
 
+## Response envelope
+
+All `/api/v1` JSON endpoints return a consistent wrapper so the client can handle every response the same way:
+
+```json
+{
+  "success": true,
+  "message": "OTP sent",
+  "data": {
+    "expires_in_minutes": 10,
+    "is_new_user": true,
+    "debug_otp": "482910"
+  }
+}
+```
+
+- `success` — `true` on HTTP 2xx, `false` on errors.
+- `message` — human-readable summary for toasts or alerts.
+- `data` — payload for the endpoint (object, array, or `null` for message-only actions like logout).
+
+The `/health` endpoint is **not** wrapped (`{"status": "ok"}`). WebSocket events are unchanged.
+
+**Client pattern**
+
+```javascript
+if (response.success) {
+  // use response.data
+} else {
+  // show response.message; optional response.data.code
+}
+```
+
+---
+
 ## Authentication
 
 Protected endpoints require a **Bearer access token** in the `Authorization` header:
@@ -102,14 +136,19 @@ E.164-style strings, 10–15 characters (e.g. `+919876543210`).
 
 ## Error responses
 
-Errors return JSON with a stable `code` for client handling:
+Errors use the same envelope with `success: false`:
 
 ```json
 {
-  "detail": "Ride cannot be cancelled",
-  "code": "RIDE_NOT_CANCELLABLE"
+  "success": false,
+  "message": "Ride cannot be cancelled",
+  "data": {
+    "code": "RIDE_NOT_CANCELLABLE"
+  }
 }
 ```
+
+Validation errors (`422`) include `data.errors` with FastAPI validation details.
 
 ### Common HTTP status codes
 
@@ -219,16 +258,19 @@ login — the server figures out which case it is and reports it via
 
 ```json
 {
+  "success": true,
   "message": "OTP sent",
-  "expires_in_minutes": 10,
-  "is_new_user": true,
-  "debug_otp": "482910"
+  "data": {
+    "expires_in_minutes": 10,
+    "is_new_user": true,
+    "debug_otp": "482910"
+  }
 }
 ```
 
-- `is_new_user` — `true` when this phone has never signed in before. Use it to
+- `data.is_new_user` — `true` when this phone has never signed in before. Use it to
   decide whether to collect a name on the OTP-verify screen.
-- `debug_otp` — only present when `OTP_DEBUG=true` (development).
+- `data.debug_otp` — only present when `OTP_DEBUG=true` (development).
 
 **Errors:** `400 ACCOUNT_BLOCKED`, `429 RATE_LIMITED`
 
@@ -269,16 +311,20 @@ when the phone is new.
 
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
-  "token_type": "bearer",
-  "user_id": "550e8400-e29b-41d4-a716-446655440000",
-  "role": "rider",
-  "is_new_user": true
+  "success": true,
+  "message": "Signed in successfully",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+    "token_type": "bearer",
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "role": "rider",
+    "is_new_user": true
+  }
 }
 ```
 
-`is_new_user` mirrors the `request-otp` response and lets the client route to
+`data.is_new_user` mirrors the `request-otp` response and lets the client route to
 an onboarding screen (e.g. ask for name later via `PATCH /profile`) the first
 time a rider signs in.
 

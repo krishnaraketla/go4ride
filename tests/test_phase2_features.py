@@ -10,6 +10,7 @@ from starlette.testclient import TestClient
 
 from app.core.redis import close_redis
 from app.main import app
+from tests.api_helpers import api_json
 
 API = "/api/v1"
 
@@ -60,14 +61,15 @@ def _register(client: TestClient) -> tuple[str, str]:
     phone = f"+9199{uuid.uuid4().int % 10**8:08d}"
     otp_req = client.post(f"{API}/auth/request-otp", json={"phone": phone})
     assert otp_req.status_code == 200, otp_req.text
-    assert otp_req.json()["is_new_user"] is True
-    debug_otp = otp_req.json()["debug_otp"]
+    otp_data = api_json(otp_req)
+    assert otp_data["is_new_user"] is True
+    debug_otp = otp_data["debug_otp"]
     verify = client.post(
         f"{API}/auth/verify-otp",
         json={"phone": phone, "code": debug_otp, "name": "Phase2 Rider"},
     )
     assert verify.status_code == 200, verify.text
-    data = verify.json()
+    data = api_json(verify)
     assert data["is_new_user"] is True
     return data["access_token"], data["refresh_token"]
 
@@ -76,7 +78,7 @@ def test_auth_refresh(client: TestClient) -> None:
     access, refresh = _register(client)
     resp = client.post(f"{API}/auth/refresh", json={"refresh_token": refresh})
     assert resp.status_code == 200, resp.text
-    body = resp.json()
+    body = api_json(resp)
     assert body["refresh_token"] != refresh
     assert "access_token" in body
 
@@ -86,7 +88,7 @@ def test_insights_endpoint(client: TestClient) -> None:
     headers = {"Authorization": f"Bearer {access}"}
     resp = client.get(f"{API}/insights?period=weekly", headers=headers)
     assert resp.status_code == 200, resp.text
-    data = resp.json()
+    data = api_json(resp)
     assert data["period"] == "weekly"
     assert "trend" in data
 
@@ -106,10 +108,10 @@ def test_addresses_crud(client: TestClient) -> None:
         },
     )
     assert create.status_code == 200, create.text
-    addr_id = create.json()["id"]
+    addr_id = api_json(create)["id"]
     listed = client.get(f"{API}/addresses?lat=12.9716&lng=77.5946", headers=headers)
     assert listed.status_code == 200
-    assert listed.json()[0]["distance_m"] is not None
+    assert api_json(listed)[0]["distance_m"] is not None
     assert client.delete(f"{API}/addresses/{addr_id}", headers=headers).status_code == 200
 
 
@@ -120,8 +122,8 @@ def test_settings_and_wallet(client: TestClient) -> None:
     patch = client.patch(
         f"{API}/settings", headers=headers, json={"notifications_enabled": False}
     )
-    assert patch.json()["notifications_enabled"] is False
-    assert client.get(f"{API}/wallet", headers=headers).json()["balance"] in ("0", "0.00")
+    assert api_json(patch)["notifications_enabled"] is False
+    assert api_json(client.get(f"{API}/wallet", headers=headers))["balance"] in ("0", "0.00")
 
 
 def test_promo_and_referral(client: TestClient) -> None:
@@ -129,10 +131,10 @@ def test_promo_and_referral(client: TestClient) -> None:
     headers = {"Authorization": f"Bearer {access}"}
     referral = client.get(f"{API}/referral", headers=headers)
     assert referral.status_code == 200
-    assert len(referral.json()["code"]) == 6
+    assert len(api_json(referral)["code"]) == 6
     promo = client.post(f"{API}/promo/apply", headers=headers, json={"code": "WELCOME5"})
     assert promo.status_code == 200, promo.text
-    assert promo.json()["credited"] == "5.00"
+    assert api_json(promo)["credited"] == "5.00"
 
 
 def test_ride_history_status_filter(client: TestClient) -> None:

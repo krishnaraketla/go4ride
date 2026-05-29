@@ -8,7 +8,9 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.exception_handlers import register_exception_handlers
 from app.core.openapi import OPENAPI_DESCRIPTION, configure_openapi
+from app.schemas.response import fail
 from app.core.redis import close_redis
 from app.db.session import engine
 
@@ -35,6 +37,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
     configure_openapi(app, settings)
+    register_exception_handlers(app)
 
     app.add_middleware(
         CORSMiddleware,
@@ -55,10 +58,8 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
         logger.exception("Unhandled error", extra={"request_id": getattr(request.state, "request_id", None)})
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "Internal server error", "code": "INTERNAL_ERROR"},
-        )
+        body = fail("Internal server error", "INTERNAL_ERROR")
+        return JSONResponse(status_code=500, content=body.model_dump())
 
     @app.get("/health", tags=["health"], summary="Health check")
     async def health():

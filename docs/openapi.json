@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Go4Ride API",
-    "description": "\nRide-hailing **rider app** API (Phase 0\u20132). Driver and admin APIs are out of scope for this service.\n\n## Authentication\n\n1. `POST /api/v1/auth/request-otp` \u2014 send OTP to phone (`debug_otp` returned when `OTP_DEBUG=true`)\n2. `POST /api/v1/auth/verify-otp` \u2014 exchange OTP for JWT pair; creates account on first sign-in\n3. Click **Authorize** and paste the `access_token` (Bearer, no prefix)\n4. `POST /api/v1/auth/refresh` \u2014 new token pair using `refresh_token` in body (no header)\n\n## Typical booking flow\n\n1. Reverse geocode (optional) \u2192 list ride types \u2192 estimate fare\n2. `POST /api/v1/rides` with optional `Idempotency-Key` header\n3. `WS /api/v1/ws/rides/{ride_id}?token={access_token}` for live updates\n4. Cancel, history, repeat, or fetch invoice as needed\n\n## WebSocket\n\n```\nWS /api/v1/ws/rides/{ride_id}?token=<access_token>\n```\n\nEvents are JSON payloads published on ride status changes (mock driver advances stages in dev).\n\n## Errors\n\nStructured JSON errors: `{\"detail\": \"...\", \"code\": \"...\"}` with HTTP 4xx/5xx.\n",
+    "description": "\nRide-hailing **rider app** API (Phase 0\u20132). Driver and admin APIs are out of scope for this service.\n\n## Authentication\n\n1. `POST /api/v1/auth/request-otp` \u2014 send OTP to phone (`debug_otp` returned when `OTP_DEBUG=true`)\n2. `POST /api/v1/auth/verify-otp` \u2014 exchange OTP for JWT pair; creates account on first sign-in\n3. Click **Authorize** and paste the `access_token` (Bearer, no prefix)\n4. `POST /api/v1/auth/refresh` \u2014 new token pair using `refresh_token` in body (no header)\n\n## Typical booking flow\n\n1. Reverse geocode (optional) \u2192 list ride types \u2192 estimate fare\n2. `POST /api/v1/rides` with optional `Idempotency-Key` header\n3. `WS /api/v1/ws/rides/{ride_id}?token={access_token}` for live updates\n4. Cancel, history, repeat, or fetch invoice as needed\n\n## WebSocket\n\n```\nWS /api/v1/ws/rides/{ride_id}?token=<access_token>\n```\n\nEvents are JSON payloads published on ride status changes (mock driver advances stages in dev).\n\n## Response envelope\n\nAll `/api/v1` JSON endpoints return:\n\n```json\n{ \"success\": true, \"message\": \"...\", \"data\": { } }\n```\n\nErrors use the same shape with `success: false` and `data.code` (plus optional `data.errors` for validation).\n\n`/health` is unwrapped: `{\"status\": \"ok\"}`.\n",
     "version": "0.2.0"
   },
   "servers": [
@@ -56,7 +56,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OTPSentResponse"
+                  "$ref": "#/components/schemas/ApiResponse_OTPSentData_"
                 }
               }
             }
@@ -98,7 +98,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
+                  "$ref": "#/components/schemas/ApiResponse_TokenResponse_"
                 }
               }
             }
@@ -140,7 +140,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
+                  "$ref": "#/components/schemas/ApiResponse_TokenResponse_"
                 }
               }
             }
@@ -181,7 +181,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
               }
             }
           },
@@ -211,7 +213,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_MeResponse_"
+                }
               }
             }
           }
@@ -277,7 +281,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReverseGeocodeResponse"
+                  "$ref": "#/components/schemas/ApiResponse_ReverseGeocodeResponse_"
                 }
               }
             }
@@ -309,11 +313,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RideTypeResponse"
-                  },
-                  "type": "array",
-                  "title": "Response List Ride Types Api V1 Ride Types Get"
+                  "$ref": "#/components/schemas/ApiResponse_list_RideTypeResponse__"
                 }
               }
             }
@@ -345,7 +345,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RideEstimateResponse"
+                  "$ref": "#/components/schemas/ApiResponse_RideEstimateResponse_"
                 }
               }
             }
@@ -410,7 +410,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_RideResponse_"
                 }
               }
             }
@@ -484,7 +484,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RideHistoryResponse"
+                  "$ref": "#/components/schemas/ApiResponse_RideHistoryResponse_"
                 }
               }
             }
@@ -533,7 +533,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RepeatRideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_RepeatRideResponse_"
                 }
               }
             }
@@ -582,7 +582,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_RideResponse_"
                 }
               }
             }
@@ -631,7 +631,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RideStatusResponse"
+                  "$ref": "#/components/schemas/ApiResponse_RideStatusResponse_"
                 }
               }
             }
@@ -680,7 +680,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_RideResponse_"
                 }
               }
             }
@@ -729,7 +729,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvoiceResponse"
+                  "$ref": "#/components/schemas/ApiResponse_InvoiceResponse_"
                 }
               }
             }
@@ -761,7 +761,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileResponse"
+                  "$ref": "#/components/schemas/ApiResponse_ProfileResponse_"
                 }
               }
             }
@@ -796,7 +796,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileResponse"
+                  "$ref": "#/components/schemas/ApiResponse_ProfileResponse_"
                 }
               }
             }
@@ -833,7 +833,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatsResponse"
+                  "$ref": "#/components/schemas/ApiResponse_StatsResponse_"
                 }
               }
             }
@@ -881,7 +881,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InsightsResponse"
+                  "$ref": "#/components/schemas/ApiResponse_InsightsResponse_"
                 }
               }
             }
@@ -960,11 +960,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AddressResponse"
-                  },
-                  "title": "Response List Addresses Api V1 Addresses Get"
+                  "$ref": "#/components/schemas/ApiResponse_list_AddressResponse__"
                 }
               }
             }
@@ -1009,7 +1005,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AddressResponse"
+                  "$ref": "#/components/schemas/ApiResponse_AddressResponse_"
                 }
               }
             }
@@ -1068,7 +1064,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AddressResponse"
+                  "$ref": "#/components/schemas/ApiResponse_AddressResponse_"
                 }
               }
             }
@@ -1114,7 +1110,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
               }
             }
           },
@@ -1145,7 +1143,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SettingsResponse"
+                  "$ref": "#/components/schemas/ApiResponse_SettingsResponse_"
                 }
               }
             }
@@ -1180,7 +1178,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SettingsResponse"
+                  "$ref": "#/components/schemas/ApiResponse_SettingsResponse_"
                 }
               }
             }
@@ -1217,7 +1215,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WalletResponse"
+                  "$ref": "#/components/schemas/ApiResponse_WalletResponse_"
                 }
               }
             }
@@ -1254,7 +1252,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PromoApplyResponse"
+                  "$ref": "#/components/schemas/ApiResponse_PromoApplyResponse_"
                 }
               }
             }
@@ -1291,7 +1289,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReferralResponse"
+                  "$ref": "#/components/schemas/ApiResponse_ReferralResponse_"
                 }
               }
             }
@@ -1327,7 +1325,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
               }
             }
           },
@@ -1363,7 +1363,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EmailVerificationSentResponse"
+                  "$ref": "#/components/schemas/ApiResponse_EmailVerificationSentData_"
                 }
               }
             }
@@ -1399,7 +1399,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
               }
             }
           },
@@ -1435,11 +1437,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PaymentMethodResponse"
-                  },
-                  "type": "array",
-                  "title": "Response List Payment Methods Api V1 Payment Methods Get"
+                  "$ref": "#/components/schemas/ApiResponse_list_PaymentMethodResponse__"
                 }
               }
             }
@@ -1474,7 +1472,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                  "$ref": "#/components/schemas/ApiResponse_PaymentMethodResponse_"
                 }
               }
             }
@@ -1538,7 +1536,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                  "$ref": "#/components/schemas/ApiResponse_PaymentMethodResponse_"
                 }
               }
             }
@@ -1584,7 +1582,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
               }
             }
           },
@@ -1799,6 +1799,684 @@
         "type": "object",
         "title": "AddressUpdateRequest"
       },
+      "ApiResponse_AddressResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[AddressResponse]"
+      },
+      "ApiResponse_EmailVerificationSentData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmailVerificationSentData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[EmailVerificationSentData]"
+      },
+      "ApiResponse_InsightsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsightsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[InsightsResponse]"
+      },
+      "ApiResponse_InvoiceResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[InvoiceResponse]"
+      },
+      "ApiResponse_MeResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[MeResponse]"
+      },
+      "ApiResponse_NoneType_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "type": "null",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[NoneType]"
+      },
+      "ApiResponse_OTPSentData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OTPSentData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[OTPSentData]"
+      },
+      "ApiResponse_PaymentMethodResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[PaymentMethodResponse]"
+      },
+      "ApiResponse_ProfileResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[ProfileResponse]"
+      },
+      "ApiResponse_PromoApplyResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromoApplyResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[PromoApplyResponse]"
+      },
+      "ApiResponse_ReferralResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferralResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[ReferralResponse]"
+      },
+      "ApiResponse_RepeatRideResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepeatRideResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[RepeatRideResponse]"
+      },
+      "ApiResponse_ReverseGeocodeResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReverseGeocodeResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[ReverseGeocodeResponse]"
+      },
+      "ApiResponse_RideEstimateResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RideEstimateResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[RideEstimateResponse]"
+      },
+      "ApiResponse_RideHistoryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RideHistoryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[RideHistoryResponse]"
+      },
+      "ApiResponse_RideResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RideResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[RideResponse]"
+      },
+      "ApiResponse_RideStatusResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RideStatusResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[RideStatusResponse]"
+      },
+      "ApiResponse_SettingsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettingsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[SettingsResponse]"
+      },
+      "ApiResponse_StatsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[StatsResponse]"
+      },
+      "ApiResponse_TokenResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TokenResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[TokenResponse]"
+      },
+      "ApiResponse_WalletResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WalletResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[WalletResponse]"
+      },
+      "ApiResponse_list_AddressResponse__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AddressResponse"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[list[AddressResponse]]"
+      },
+      "ApiResponse_list_PaymentMethodResponse__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[list[PaymentMethodResponse]]"
+      },
+      "ApiResponse_list_RideTypeResponse__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RideTypeResponse"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[list[RideTypeResponse]]"
+      },
       "Coordinates-Input": {
         "properties": {
           "lat": {
@@ -2005,12 +2683,8 @@
         ],
         "title": "DriverSummary"
       },
-      "EmailVerificationSentResponse": {
+      "EmailVerificationSentData": {
         "properties": {
-          "message": {
-            "type": "string",
-            "title": "Message"
-          },
           "debug_code": {
             "anyOf": [
               {
@@ -2024,10 +2698,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "message"
-        ],
-        "title": "EmailVerificationSentResponse"
+        "title": "EmailVerificationSentData"
       },
       "EmailVerifyRequest": {
         "properties": {
@@ -2247,12 +2918,43 @@
         ],
         "title": "LogoutRequest"
       },
-      "OTPSentResponse": {
+      "MeResponse": {
         "properties": {
-          "message": {
+          "id": {
             "type": "string",
-            "title": "Message"
+            "title": "Id"
           },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "phone",
+          "name",
+          "role"
+        ],
+        "title": "MeResponse"
+      },
+      "OTPSentData": {
+        "properties": {
           "expires_in_minutes": {
             "type": "integer",
             "title": "Expires In Minutes"
@@ -2275,11 +2977,10 @@
         },
         "type": "object",
         "required": [
-          "message",
           "expires_in_minutes",
           "is_new_user"
         ],
-        "title": "OTPSentResponse"
+        "title": "OTPSentData"
       },
       "PartnerInterestRequest": {
         "properties": {
