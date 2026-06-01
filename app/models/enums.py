@@ -26,3 +26,29 @@ class RideStatus(str, enum.Enum):
     in_progress = "in_progress"
     completed = "completed"
     cancelled = "cancelled"
+
+
+class DriverStatus(str, enum.Enum):
+    offline = "offline"
+    online = "online"
+    on_ride = "on_ride"
+
+
+class KycStatus(str, enum.Enum):
+    pending = "pending"
+    submitted = "submitted"
+    approved = "approved"
+    rejected = "rejected"
+
+
+class DocumentType(str, enum.Enum):
+    license = "license"
+    registration = "registration"
+    insurance = "insurance"
+    profile_photo = "profile_photo"
+
+
+class DocumentStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"

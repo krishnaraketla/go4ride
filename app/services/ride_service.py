@@ -351,9 +351,10 @@ async def _transition_status(
         ride.driver_assigned_at = now
     elif status == RideStatus.driver_arrived:
         ride.driver_arrived_at = now
+        # Generate OTP now so driver can show it to the rider before the trip starts
+        ride.start_otp = f"{secrets.randbelow(1_000_000):06d}"
     elif status == RideStatus.in_progress:
         ride.started_at = now
-        ride.start_otp = f"{secrets.randbelow(1_000_000):06d}"
     elif status == RideStatus.completed:
         ride.completed_at = now
         ride.final_fare = ride.estimated_fare

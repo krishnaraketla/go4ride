@@ -41,6 +41,12 @@ async def get_current_rider(user: Annotated[User, Depends(get_current_user)]) ->
     return user
 
 
+async def get_current_driver(user: Annotated[User, Depends(get_current_user)]) -> User:
+    if user.role != UserRole.driver:
+        raise forbidden("Driver access required")
+    return user
+
+
 def get_idempotency_key(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> str | None:
