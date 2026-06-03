@@ -65,13 +65,23 @@ class DriverRefreshRequest(BaseModel):
 
 
 class DriverRefreshResponse(BaseModel):
+    success: bool = True
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    token_expires_in: int = Field(default=900, description="Access token validity in seconds")
+    refresh_token_expires_in: int = Field(default=604800, description="Refresh token validity in seconds")
 
 
 class DriverLogoutRequest(BaseModel):
     refresh_token: str
+
+
+class DriverLogoutResponse(BaseModel):
+    success: bool = True
+    message: str
+    driver_status_set_to: str
+    logged_out_at: datetime
 
 
 # ---------------------------------------------------------------------------
