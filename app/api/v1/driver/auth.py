@@ -1,9 +1,9 @@
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.deps import get_current_driver
@@ -14,6 +14,7 @@ from app.schemas.driver import (
     DriverAuthResponse,
     DriverBasicProfile,
     DriverLogoutRequest,
+    DriverLogoutResponse,
     DriverRefreshRequest,
     DriverRefreshResponse,
     DriverRequestOtpRequest,
@@ -105,15 +106,41 @@ async def refresh(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     user, access, new_refresh = await refresh_tokens(db, body.refresh_token)
+    settings = get_settings()
     await db.commit()
-    return DriverRefreshResponse(access_token=access, refresh_token=new_refresh)
+    return DriverRefreshResponse(
+        success=True,
+        access_token=access,
+        refresh_token=new_refresh,
+        token_expires_in=settings.jwt_access_expire_minutes * 60,
+        refresh_token_expires_in=settings.jwt_refresh_expire_days * 24 * 60 * 60,
+    )
 
 
-@router.post("/logout", status_code=204)
+@router.post("/logout", response_model=DriverLogoutResponse)
 async def driver_logout(
     body: DriverLogoutRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: Annotated[User, Depends(get_current_driver)],
+    driver: Annotated[User, Depends(get_current_driver)],
 ):
+    # Revoke the refresh token
     await logout(db, body.refresh_token)
+
+    # Auto set driver status to offline on logout
+    profile_result = await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == driver.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    if profile is not None:
+        from app.models.enums import DriverStatus
+        profile.driver_status = DriverStatus.offline
+
+    logged_out_at = datetime.now(timezone.utc)
     await db.commit()
+
+    return DriverLogoutResponse(
+        success=True,
+        message="Logged out successfully",
+        driver_status_set_to="offline",
+        logged_out_at=logged_out_at,
+    )
