@@ -12,31 +12,52 @@ from app.models.enums import DocumentStatus, DocumentType, DriverStatus, KycStat
 # ---------------------------------------------------------------------------
 
 class DriverRequestOtpRequest(BaseModel):
-    phone: str = Field(..., examples=["9876543210"])
+    phone_number: str = Field(..., examples=["9876543210"], description="Mobile number without country code")
+    country_code: str = Field(..., examples=["+91"], description="Country dial code e.g. +91 for India")
+    device_id: str = Field(..., description="Unique device identifier for fraud detection")
+    platform: str = Field(..., examples=["ios", "android"], description="ios or android")
 
 
 class DriverRequestOtpResponse(BaseModel):
+    success: bool = True
     message: str
-    expires_in_minutes: int
+    session_token: str | None = None
+    otp_expires_in: int = Field(..., description="OTP validity in seconds")
+    masked_phone: str = Field(..., description="Masked phone e.g. +91 ****3210")
+    resend_allowed_after: int = Field(default=60, description="Seconds before resend is allowed")
     is_new_user: bool
-    debug_otp: str | None = None
+    debug_otp: str | None = Field(default=None, description="Only present when OTP_DEBUG=true in .env")
 
 
 class DriverVerifyOtpRequest(BaseModel):
-    phone: str
-    code: str
+    phone_number: str = Field(..., examples=["9876543210"], description="Mobile number without country code")
+    country_code: str = Field(..., examples=["+91"], description="Country dial code e.g. +91")
+    otp: str = Field(..., description="OTP received via SMS")
+    device_id: str = Field(..., description="Unique device identifier")
     name: str | None = None
     fcm_token: str | None = None
     platform: str | None = None
 
 
+class DriverBasicProfile(BaseModel):
+    name: str | None
+    phone: str
+    avatar_url: str | None = None
+
+
 class DriverAuthResponse(BaseModel):
+    success: bool = True
+    driver_id: str
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    is_new_user: bool
-    driver_id: UUID
-    name: str | None
+    token_expires_in: int = Field(default=900, description="Access token validity in seconds")
+    is_new_driver: bool
+    onboarding_status: str = Field(
+        default="pending",
+        description="pending = no profile yet, complete = profile exists",
+    )
+    profile: DriverBasicProfile
 
 
 class DriverRefreshRequest(BaseModel):
