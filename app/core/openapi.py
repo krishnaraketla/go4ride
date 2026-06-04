@@ -52,7 +52,7 @@ OPENAPI_TAGS = [
     },
     {
         "name": "rides",
-        "description": "Fare estimates, booking lifecycle, history, invoices, and repeat ride.",
+        "description": "Ride quote, booking lifecycle, history, invoices, and repeat ride.",
     },
     {
         "name": "websocket",
@@ -72,10 +72,10 @@ Ride-hailing **rider app** API (Phase 0–2). Driver and admin APIs are out of s
 
 ## Typical booking flow
 
-1. Reverse geocode (optional) → list ride types → estimate fare
-2. `POST /api/v1/rides` with optional `Idempotency-Key` header
-3. `WS /api/v1/ws/rides/{ride_id}?token={access_token}` for live updates
-4. Cancel, history, repeat, or fetch invoice as needed
+1. `POST /api/v1/rides/quote` — pickup/drop coordinates → all ride types with fare and ETA
+2. `POST /api/v1/rides` with optional `Idempotency-Key` header (use addresses from quote)
+3. `WS /api/v1/ws/rides/{ride_id}?token={access_token}` for live updates (no status polling)
+4. `POST /api/v1/rides/{ride_id}/cancel` to cancel; history, repeat, or invoice as needed
 
 ## WebSocket
 

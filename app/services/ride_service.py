@@ -1,6 +1,7 @@
+import asyncio
 import secrets
-from datetime import datetime, timezone
-from decimal import Decimal
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -12,7 +13,7 @@ from app.core.exceptions import bad_request, not_found
 from app.core.redis import get_idempotency, publish_ride_event, store_idempotency
 from app.models.driver import DriverProfile
 from app.models.enums import RideStatus
-from app.models.ride import Ride, RideStatusEvent
+from app.models.ride import Ride, RideStatusEvent, RideType
 from app.models.user import User
 from app.core.config import get_settings as get_app_settings
 from app.schemas.invoice import InvoiceResponse
@@ -21,10 +22,13 @@ from app.schemas.ride import (
     CreateRideRequest,
     DriverSummary,
     RepeatRideResponse,
+    RideQuoteOption,
+    RideQuoteResponse,
     RideResponse,
     RideStatusResponse,
+    RouteSummary,
 )
-from app.services import fare_service, geo_service
+from app.services import fare_service, geo_service, supply_service
 
 TERMINAL_STATUSES = {RideStatus.completed, RideStatus.cancelled}
 
@@ -62,6 +66,26 @@ def assert_valid_transition(current: RideStatus, target: RideStatus) -> None:
         )
 
 
+QUOTE_TTL_MINUTES = 5
+
+
+def _trip_duration_min(duration_min: Decimal) -> int:
+    return int(duration_min.to_integral_value(rounding=ROUND_HALF_UP))
+
+
+async def _fare_for_route(
+    db: AsyncSession,
+    ride_type_slug: str,
+    distance_km: Decimal,
+    duration_min: Decimal,
+) -> tuple[Decimal, Decimal, str]:
+    ride_type = await fare_service.get_ride_type_by_slug(db, ride_type_slug)
+    rule = await fare_service.get_fare_rule(db, ride_type.id)
+    surge = Decimal("1.00")
+    estimated = fare_service.calculate_fare(rule, distance_km, duration_min, surge)
+    return estimated, surge, rule.currency
+
+
 async def estimate_ride(
     db: AsyncSession,
     pickup_lat: Decimal,
@@ -70,14 +94,83 @@ async def estimate_ride(
     drop_lng: Decimal,
     ride_type_slug: str,
 ) -> tuple[Decimal, Decimal, Decimal, Decimal, str]:
-    ride_type = await fare_service.get_ride_type_by_slug(db, ride_type_slug)
-    rule = await fare_service.get_fare_rule(db, ride_type.id)
-    distance_km, duration_min = await geo_service.get_route_distance_duration(
-        pickup_lat, pickup_lng, drop_lat, drop_lng
+    route = await geo_service.get_route(pickup_lat, pickup_lng, drop_lat, drop_lng)
+    estimated, surge, currency = await _fare_for_route(
+        db, ride_type_slug, route.distance_km, route.duration_min
     )
+    return route.distance_km, route.duration_min, estimated, surge, currency
+
+
+async def quote_ride(
+    db: AsyncSession,
+    pickup_lat: Decimal,
+    pickup_lng: Decimal,
+    drop_lat: Decimal,
+    drop_lng: Decimal,
+) -> RideQuoteResponse:
+    route_task = geo_service.get_route(pickup_lat, pickup_lng, drop_lat, drop_lng)
+    pickup_addr_task = geo_service.reverse_geocode(pickup_lat, pickup_lng)
+    drop_addr_task = geo_service.reverse_geocode(drop_lat, drop_lng)
+    route, pickup_address, drop_address = await asyncio.gather(
+        route_task, pickup_addr_task, drop_addr_task
+    )
+
+    result = await db.execute(select(RideType).where(RideType.is_active.is_(True)))
+    ride_types = result.scalars().all()
+    trip_min = _trip_duration_min(route.duration_min)
     surge = Decimal("1.00")
-    estimated = fare_service.calculate_fare(rule, distance_km, duration_min, surge)
-    return distance_km, duration_min, estimated, surge, rule.currency
+    currency = get_settings().default_currency
+    options: list[RideQuoteOption] = []
+
+    for ride_type in ride_types:
+        rule = await fare_service.get_fare_rule(db, ride_type.id)
+        currency = rule.currency
+        estimated = fare_service.calculate_fare(
+            rule, route.distance_km, route.duration_min, surge
+        )
+        supply = await supply_service.mock_availability(
+            db, pickup_lat, pickup_lng, ride_type_slug=ride_type.slug
+        )
+        total_eta = (
+            (supply.pickup_eta_min + trip_min) if supply.available and supply.pickup_eta_min else None
+        )
+        options.append(
+            RideQuoteOption(
+                slug=ride_type.slug,
+                name=ride_type.name,
+                description=ride_type.description,
+                icon_url=ride_type.icon_url,
+                available=supply.available,
+                drivers_nearby=supply.drivers_nearby,
+                estimated_fare=estimated,
+                pickup_eta_min=supply.pickup_eta_min if supply.available else None,
+                trip_duration_min=trip_min,
+                total_eta_min=total_eta,
+            )
+        )
+
+    options.sort(key=lambda o: (not o.available, o.total_eta_min or 9999))
+
+    return RideQuoteResponse(
+        pickup_address=pickup_address,
+        drop_address=drop_address,
+        route=RouteSummary(
+            distance_km=route.distance_km,
+            duration_min=route.duration_min,
+            polyline=route.polyline,
+        ),
+        currency=currency,
+        surge_multiplier=surge,
+        quote_expires_at=datetime.now(timezone.utc) + timedelta(minutes=QUOTE_TTL_MINUTES),
+        options=options,
+    )
+
+
+async def rider_owns_ride(db: AsyncSession, rider_id: UUID, ride_id: UUID) -> bool:
+    result = await db.execute(
+        select(Ride.id).where(Ride.id == ride_id, Ride.rider_id == rider_id)
+    )
+    return result.scalar_one_or_none() is not None
 
 
 async def create_ride(

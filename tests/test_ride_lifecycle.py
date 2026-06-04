@@ -86,14 +86,18 @@ def test_full_mock_lifecycle(client: TestClient) -> None:
     token = _register_and_token(client, phone)
     headers = {"Authorization": f"Bearer {token}"}
 
+    quote = client.post(f"{API}/rides/quote", json={"pickup": PICKUP, "drop": DROP})
+    assert quote.status_code == 200, quote.text
+    quote_data = api_json(quote)
+
     create = client.post(
         f"{API}/rides",
         headers=headers,
         json={
             "pickup": PICKUP,
             "drop": DROP,
-            "pickup_address": "Test Pickup",
-            "drop_address": "Test Drop",
+            "pickup_address": quote_data["pickup_address"],
+            "drop_address": quote_data["drop_address"],
             "ride_type_slug": "mini",
         },
     )
@@ -136,14 +140,18 @@ def test_cancel_after_driver_assigned(client: TestClient) -> None:
     token = _register_and_token(client, phone)
     headers = {"Authorization": f"Bearer {token}"}
 
+    quote = client.post(f"{API}/rides/quote", json={"pickup": PICKUP, "drop": DROP})
+    assert quote.status_code == 200
+    quote_data = api_json(quote)
+
     create = client.post(
         f"{API}/rides",
         headers=headers,
         json={
             "pickup": PICKUP,
             "drop": DROP,
-            "pickup_address": "Test Pickup",
-            "drop_address": "Test Drop",
+            "pickup_address": quote_data["pickup_address"],
+            "drop_address": quote_data["drop_address"],
             "ride_type_slug": "mini",
         },
     )

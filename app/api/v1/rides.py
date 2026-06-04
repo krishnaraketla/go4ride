@@ -2,54 +2,34 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_rider, get_db, get_idempotency_key
-from app.models.ride import RideType
 from app.models.user import User
 from app.schemas.invoice import InvoiceResponse
 from app.schemas.response import ApiResponse, ok
 from app.schemas.ride import (
     CreateRideRequest,
-    RideEstimateRequest,
-    RideEstimateResponse,
     RepeatRideResponse,
     RideHistoryResponse,
+    RideQuoteRequest,
+    RideQuoteResponse,
     RideResponse,
     RideStatusResponse,
-    RideTypeResponse,
 )
 from app.services import ride_service
 
 router = APIRouter(tags=["rides"])
 
 
-@router.get("/ride-types", response_model=ApiResponse[list[RideTypeResponse]])
-async def list_ride_types(db: Annotated[AsyncSession, Depends(get_db)]):
-    """List active ride types (mini, sedan, bike, xl)."""
+@router.post("/rides/quote", response_model=ApiResponse[RideQuoteResponse])
+async def quote_ride(body: RideQuoteRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Preview all ride types with fare and ETA for pickup → drop (single route call)."""
 
-    result = await db.execute(select(RideType).where(RideType.is_active.is_(True)))
-    return ok(result.scalars().all(), message="Ride types retrieved")
-
-
-@router.post("/rides/estimate", response_model=ApiResponse[RideEstimateResponse])
-async def estimate_ride(body: RideEstimateRequest, db: Annotated[AsyncSession, Depends(get_db)]):
-    """Get distance, duration, and fare quote for a route."""
-
-    distance_km, duration_min, estimated, surge, currency = await ride_service.estimate_ride(
-        db, body.pickup.lat, body.pickup.lng, body.drop.lat, body.drop.lng, body.ride_type_slug
+    quote = await ride_service.quote_ride(
+        db, body.pickup.lat, body.pickup.lng, body.drop.lat, body.drop.lng
     )
-    return ok(
-        RideEstimateResponse(
-            distance_km=distance_km,
-            duration_min=duration_min,
-            estimated_fare=estimated,
-            currency=currency,
-            surge_multiplier=surge,
-        ),
-        message="Fare estimate calculated",
-    )
+    return ok(quote, message="Ride quote calculated")
 
 
 @router.post("/rides", response_model=ApiResponse[RideResponse])
@@ -91,7 +71,7 @@ async def repeat_ride(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Return estimate + create payload to re-book a past ride."""
+    """Return coords and addresses to re-book via quote → create."""
 
     payload = await ride_service.get_repeat_ride_payload(db, rider, ride_id)
     return ok(payload, message="Repeat ride payload retrieved")

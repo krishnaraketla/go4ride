@@ -10,14 +10,13 @@ class Coordinates(BaseModel):
     lng: Decimal = Field(..., ge=-180, le=180)
 
 
-class RideEstimateRequest(BaseModel):
+class RideQuoteRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
                 {
                     "pickup": {"lat": "12.9716", "lng": "77.5946"},
                     "drop": {"lat": "12.9352", "lng": "77.6245"},
-                    "ride_type_slug": "mini",
                 }
             ]
         },
@@ -25,25 +24,35 @@ class RideEstimateRequest(BaseModel):
 
     pickup: Coordinates
     drop: Coordinates
-    ride_type_slug: str = Field(..., examples=["mini", "sedan", "bike", "xl"])
 
 
-class RideEstimateResponse(BaseModel):
+class RouteSummary(BaseModel):
     distance_km: Decimal
     duration_min: Decimal
-    estimated_fare: Decimal
-    currency: str
-    surge_multiplier: Decimal
+    polyline: str | None = None
 
 
-class RideTypeResponse(BaseModel):
-    id: UUID
+class RideQuoteOption(BaseModel):
     slug: str
     name: str
-    description: str | None
-    icon_url: str | None
+    description: str | None = None
+    icon_url: str | None = None
+    available: bool
+    drivers_nearby: int
+    estimated_fare: Decimal
+    pickup_eta_min: int | None = None
+    trip_duration_min: int
+    total_eta_min: int | None = None
 
-    model_config = {"from_attributes": True}
+
+class RideQuoteResponse(BaseModel):
+    pickup_address: str
+    drop_address: str
+    route: RouteSummary
+    currency: str
+    surge_multiplier: Decimal
+    quote_expires_at: datetime
+    options: list[RideQuoteOption]
 
 
 class CreateRideRequest(BaseModel):

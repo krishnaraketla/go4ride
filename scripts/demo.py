@@ -266,16 +266,16 @@ def run_api_demo() -> None:
     pp("Geocode", {"pickup": pickup_addr, "drop": drop_addr})
 
     with httpx.Client(timeout=15.0) as client:
-        ride_types = assert_ok(client.get(f"{API}/ride-types"), "ride-types")
-        estimate = assert_ok(
+        quote = assert_ok(
             client.post(
-                f"{API}/rides/estimate",
-                json={"pickup": PICKUP, "drop": DROP, "ride_type_slug": RIDE_TYPE},
+                f"{API}/rides/quote",
+                json={"pickup": PICKUP, "drop": DROP},
             ),
-            "rides/estimate",
+            "rides/quote",
         )
-    pp("Ride types", ride_types)
-    pp("Fare estimate", estimate)
+    session.pickup_address = quote.get("pickup_address", session.pickup_address)
+    session.drop_address = quote.get("drop_address", session.drop_address)
+    pp("Ride quote", quote)
 
     pp("Profile", step_profile(session))
     pp("Insights", step_insights(session))

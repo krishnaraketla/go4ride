@@ -63,8 +63,7 @@ All `/api/v1` JSON responses use `{ "success", "message", "data" }` (see [Respon
 | Payment | `PATCH` | `/api/v1/payment-methods/{id}` | Bearer (rider) | Set default card |
 | Payment | `DELETE` | `/api/v1/payment-methods/{id}` | Bearer (rider) | Remove card |
 | Location | `GET` | `/api/v1/location/reverse-geocode` | None | `?lat=&lng=` → formatted address |
-| Fare | `GET` | `/api/v1/ride-types` | None | List ride types (mini, sedan, bike, xl) |
-| Fare | `POST` | `/api/v1/rides/estimate` | None | Fare quote |
+| Rides | `POST` | `/api/v1/rides/quote` | None | All ride types with fare + ETA for pickup → drop |
 | Rides | `POST` | `/api/v1/rides` | Bearer (rider) | Create booking |
 | Rides | `POST` | `/api/v1/rides/{ride_id}/cancel` | Bearer (rider) | Cancel ride |
 | Rides | `POST` | `/api/v1/rides/{ride_id}/repeat` | Bearer (rider) | Prefill payload for re-booking |
@@ -102,11 +101,10 @@ All `/api/v1` JSON responses use `{ "success", "message", "data" }` (see [Respon
 1. `POST /api/v1/auth/request-otp` — send the rider's phone number; response includes `is_new_user`
 2. `POST /api/v1/auth/verify-otp` → `access_token`, `refresh_token`; pass `name` (and optional `referral_code`) when `is_new_user` was true
 3. `POST /api/v1/auth/refresh` when access token expires
-4. `GET /api/v1/location/reverse-geocode` (optional)
-5. `GET /api/v1/ride-types`
-6. `POST /api/v1/rides/estimate`
-7. `POST /api/v1/rides`
-8. `WS /api/v1/ws/rides/{ride_id}?token=…`
-9. `GET /api/v1/rides/history` for Bookings
-10. `POST /api/v1/rides/{ride_id}/repeat` → estimate + create for “Repeat ride”
-11. `POST /api/v1/auth/logout` on sign-out
+4. `POST /api/v1/rides/quote` — pickup/drop lat/lng (includes reverse geocode + all fares)
+5. `POST /api/v1/rides` — confirm with `ride_type_slug` and addresses from quote
+6. `WS /api/v1/ws/rides/{ride_id}?token=…` — live status (no polling)
+7. `POST /api/v1/rides/{ride_id}/cancel` when needed
+8. `GET /api/v1/rides/history` for Bookings
+9. `POST /api/v1/rides/{ride_id}/repeat` → quote + create for “Repeat ride”
+10. `POST /api/v1/auth/logout` on sign-out

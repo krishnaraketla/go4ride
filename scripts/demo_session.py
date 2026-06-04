@@ -171,24 +171,26 @@ def step_geocode(session: DemoSession) -> dict[str, Any]:
     return {"pickup": pickup_addr, "drop": drop_addr}
 
 
-def step_estimate(session: DemoSession) -> dict[str, Any]:
+def step_quote(session: DemoSession) -> dict[str, Any]:
     require_api()
     with httpx.Client(timeout=15.0) as client:
-        ride_types = assert_ok(client.get(f"{API}/ride-types"), "ride-types")
-        estimate = assert_ok(
+        quote = assert_ok(
             client.post(
-                f"{API}/rides/estimate",
-                json={
-                    "pickup": PICKUP,
-                    "drop": DROP,
-                    "ride_type_slug": RIDE_TYPE,
-                },
+                f"{API}/rides/quote",
+                json={"pickup": PICKUP, "drop": DROP},
             ),
-            "rides/estimate",
+            "rides/quote",
         )
-    session.last_estimate = estimate
+    session.pickup_address = quote.get("pickup_address", session.pickup_address)
+    session.drop_address = quote.get("drop_address", session.drop_address)
+    session.last_estimate = quote
     session.save()
-    return {"ride_types": ride_types, "estimate": estimate}
+    return {"quote": quote}
+
+
+def step_estimate(session: DemoSession) -> dict[str, Any]:
+    """Backward-compatible alias for demo menu."""
+    return step_quote(session)
 
 
 def step_create_ride(session: DemoSession) -> dict[str, Any]:

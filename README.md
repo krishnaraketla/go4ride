@@ -90,8 +90,7 @@ Quick list:
 | POST | `/api/v1/email/*` | Email verification |
 | CRUD | `/api/v1/payment-methods` | Saved cards (stub) |
 | GET | `/api/v1/location/reverse-geocode` | Lat/lng → address |
-| GET | `/api/v1/ride-types` | Mini, sedan, etc. |
-| POST | `/api/v1/rides/estimate` | Fare quote |
+| POST | `/api/v1/rides/quote` | All ride types with fare + ETA for route |
 | POST | `/api/v1/rides` | Create ride |
 | POST | `/api/v1/rides/{id}/cancel` | Cancel ride |
 | GET | `/api/v1/rides/{id}` | Ride details |

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Go4Ride API",
-    "description": "\nRide-hailing **rider app** API (Phase 0\u20132). Driver and admin APIs are out of scope for this service.\n\n## Authentication\n\n1. `POST /api/v1/auth/request-otp` \u2014 send OTP to phone (`debug_otp` returned when `OTP_DEBUG=true`)\n2. `POST /api/v1/auth/verify-otp` \u2014 exchange OTP for JWT pair; creates account on first sign-in\n3. Click **Authorize** and paste the `access_token` (Bearer, no prefix)\n4. `POST /api/v1/auth/refresh` \u2014 new token pair using `refresh_token` in body (no header)\n\n## Typical booking flow\n\n1. Reverse geocode (optional) \u2192 list ride types \u2192 estimate fare\n2. `POST /api/v1/rides` with optional `Idempotency-Key` header\n3. `WS /api/v1/ws/rides/{ride_id}?token={access_token}` for live updates\n4. Cancel, history, repeat, or fetch invoice as needed\n\n## WebSocket\n\n```\nWS /api/v1/ws/rides/{ride_id}?token=<access_token>\n```\n\nEvents are JSON payloads published on ride status changes (mock driver advances stages in dev).\n\n## Response envelope\n\nAll `/api/v1` JSON endpoints return:\n\n```json\n{ \"success\": true, \"message\": \"...\", \"data\": { } }\n```\n\nErrors use the same shape with `success: false` and `data.code` (plus optional `data.errors` for validation).\n\n`/health` is unwrapped: `{\"status\": \"ok\"}`.\n",
+    "description": "\nRide-hailing **rider app** API (Phase 0\u20132). Driver and admin APIs are out of scope for this service.\n\n## Authentication\n\n1. `POST /api/v1/auth/request-otp` \u2014 send OTP to phone (`debug_otp` returned when `OTP_DEBUG=true`)\n2. `POST /api/v1/auth/verify-otp` \u2014 exchange OTP for JWT pair; creates account on first sign-in\n3. Click **Authorize** and paste the `access_token` (Bearer, no prefix)\n4. `POST /api/v1/auth/refresh` \u2014 new token pair using `refresh_token` in body (no header)\n\n## Typical booking flow\n\n1. `POST /api/v1/rides/quote` \u2014 pickup/drop coordinates \u2192 all ride types with fare and ETA\n2. `POST /api/v1/rides` with optional `Idempotency-Key` header (use addresses from quote)\n3. `WS /api/v1/ws/rides/{ride_id}?token={access_token}` for live updates (no status polling)\n4. `POST /api/v1/rides/{ride_id}/cancel` to cancel; history, repeat, or invoice as needed\n\n## WebSocket\n\n```\nWS /api/v1/ws/rides/{ride_id}?token=<access_token>\n```\n\nEvents are JSON payloads published on ride status changes (mock driver advances stages in dev).\n\n## Response envelope\n\nAll `/api/v1` JSON endpoints return:\n\n```json\n{ \"success\": true, \"message\": \"...\", \"data\": { } }\n```\n\nErrors use the same shape with `success: false` and `data.code` (plus optional `data.errors` for validation).\n\n`/health` is unwrapped: `{\"status\": \"ok\"}`.\n",
     "version": "0.2.0"
   },
   "servers": [
@@ -299,41 +299,19 @@
         }
       }
     },
-    "/api/v1/ride-types": {
-      "get": {
-        "tags": [
-          "rides"
-        ],
-        "summary": "List Ride Types",
-        "description": "List active ride types (mini, sedan, bike, xl).",
-        "operationId": "list_ride_types_api_v1_ride_types_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse_list_RideTypeResponse__"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/rides/estimate": {
+    "/api/v1/rides/quote": {
       "post": {
         "tags": [
           "rides"
         ],
-        "summary": "Estimate Ride",
-        "description": "Get distance, duration, and fare quote for a route.",
-        "operationId": "estimate_ride_api_v1_rides_estimate_post",
+        "summary": "Quote Ride",
+        "description": "Preview all ride types with fare and ETA for pickup \u2192 drop (single route call).",
+        "operationId": "quote_ride_api_v1_rides_quote_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RideEstimateRequest"
+                "$ref": "#/components/schemas/RideQuoteRequest"
               }
             }
           },
@@ -345,7 +323,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse_RideEstimateResponse_"
+                  "$ref": "#/components/schemas/ApiResponse_RideQuoteResponse_"
                 }
               }
             }
@@ -508,7 +486,7 @@
           "rides"
         ],
         "summary": "Repeat Ride",
-        "description": "Return estimate + create payload to re-book a past ride.",
+        "description": "Return coords and addresses to re-book via quote \u2192 create.",
         "operationId": "repeat_ride_api_v1_rides__ride_id__repeat_post",
         "security": [
           {
@@ -2157,34 +2135,6 @@
         ],
         "title": "ApiResponse[ReverseGeocodeResponse]"
       },
-      "ApiResponse_RideEstimateResponse_": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RideEstimateResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "success",
-          "message"
-        ],
-        "title": "ApiResponse[RideEstimateResponse]"
-      },
       "ApiResponse_RideHistoryResponse_": {
         "properties": {
           "success": {
@@ -2212,6 +2162,34 @@
           "message"
         ],
         "title": "ApiResponse[RideHistoryResponse]"
+      },
+      "ApiResponse_RideQuoteResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RideQuoteResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[RideQuoteResponse]"
       },
       "ApiResponse_RideResponse_": {
         "properties": {
@@ -2444,38 +2422,6 @@
           "message"
         ],
         "title": "ApiResponse[list[PaymentMethodResponse]]"
-      },
-      "ApiResponse_list_RideTypeResponse__": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/RideTypeResponse"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success",
-          "message"
-        ],
-        "title": "ApiResponse[list[RideTypeResponse]]"
       },
       "Coordinates-Input": {
         "properties": {
@@ -3368,83 +3314,6 @@
         ],
         "title": "ReverseGeocodeResponse"
       },
-      "RideEstimateRequest": {
-        "properties": {
-          "pickup": {
-            "$ref": "#/components/schemas/Coordinates-Input"
-          },
-          "drop": {
-            "$ref": "#/components/schemas/Coordinates-Input"
-          },
-          "ride_type_slug": {
-            "type": "string",
-            "title": "Ride Type Slug",
-            "examples": [
-              "mini",
-              "sedan",
-              "bike",
-              "xl"
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "pickup",
-          "drop",
-          "ride_type_slug"
-        ],
-        "title": "RideEstimateRequest",
-        "examples": [
-          {
-            "drop": {
-              "lat": "12.9352",
-              "lng": "77.6245"
-            },
-            "pickup": {
-              "lat": "12.9716",
-              "lng": "77.5946"
-            },
-            "ride_type_slug": "mini"
-          }
-        ]
-      },
-      "RideEstimateResponse": {
-        "properties": {
-          "distance_km": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Distance Km"
-          },
-          "duration_min": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Duration Min"
-          },
-          "estimated_fare": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Estimated Fare"
-          },
-          "currency": {
-            "type": "string",
-            "title": "Currency"
-          },
-          "surge_multiplier": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Surge Multiplier"
-          }
-        },
-        "type": "object",
-        "required": [
-          "distance_km",
-          "duration_min",
-          "estimated_fare",
-          "currency",
-          "surge_multiplier"
-        ],
-        "title": "RideEstimateResponse"
-      },
       "RideHistoryResponse": {
         "properties": {
           "items": {
@@ -3475,6 +3344,164 @@
           "total"
         ],
         "title": "RideHistoryResponse"
+      },
+      "RideQuoteOption": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "icon_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon Url"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "drivers_nearby": {
+            "type": "integer",
+            "title": "Drivers Nearby"
+          },
+          "estimated_fare": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimated Fare"
+          },
+          "pickup_eta_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Eta Min"
+          },
+          "trip_duration_min": {
+            "type": "integer",
+            "title": "Trip Duration Min"
+          },
+          "total_eta_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Eta Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "available",
+          "drivers_nearby",
+          "estimated_fare",
+          "trip_duration_min"
+        ],
+        "title": "RideQuoteOption"
+      },
+      "RideQuoteRequest": {
+        "properties": {
+          "pickup": {
+            "$ref": "#/components/schemas/Coordinates-Input"
+          },
+          "drop": {
+            "$ref": "#/components/schemas/Coordinates-Input"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pickup",
+          "drop"
+        ],
+        "title": "RideQuoteRequest",
+        "examples": [
+          {
+            "drop": {
+              "lat": "12.9352",
+              "lng": "77.6245"
+            },
+            "pickup": {
+              "lat": "12.9716",
+              "lng": "77.5946"
+            }
+          }
+        ]
+      },
+      "RideQuoteResponse": {
+        "properties": {
+          "pickup_address": {
+            "type": "string",
+            "title": "Pickup Address"
+          },
+          "drop_address": {
+            "type": "string",
+            "title": "Drop Address"
+          },
+          "route": {
+            "$ref": "#/components/schemas/RouteSummary"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "surge_multiplier": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Surge Multiplier"
+          },
+          "quote_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Quote Expires At"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/RideQuoteOption"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pickup_address",
+          "drop_address",
+          "route",
+          "currency",
+          "surge_multiplier",
+          "quote_expires_at",
+          "options"
+        ],
+        "title": "RideQuoteResponse"
       },
       "RideResponse": {
         "properties": {
@@ -3712,22 +3739,19 @@
         ],
         "title": "RideStatusResponse"
       },
-      "RideTypeResponse": {
+      "RouteSummary": {
         "properties": {
-          "id": {
+          "distance_km": {
             "type": "string",
-            "format": "uuid",
-            "title": "Id"
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Distance Km"
           },
-          "slug": {
+          "duration_min": {
             "type": "string",
-            "title": "Slug"
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duration Min"
           },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
+          "polyline": {
             "anyOf": [
               {
                 "type": "string"
@@ -3736,29 +3760,15 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
-          },
-          "icon_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Icon Url"
+            "title": "Polyline"
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "slug",
-          "name",
-          "description",
-          "icon_url"
+          "distance_km",
+          "duration_min"
         ],
-        "title": "RideTypeResponse"
+        "title": "RouteSummary"
       },
       "SettingsResponse": {
         "properties": {
@@ -4089,7 +4099,7 @@
     },
     {
       "name": "rides",
-      "description": "Fare estimates, booking lifecycle, history, invoices, and repeat ride."
+      "description": "Ride quote, booking lifecycle, history, invoices, and repeat ride."
     },
     {
       "name": "websocket",

@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from uuid import UUID
 
@@ -8,6 +7,8 @@ from jose import JWTError
 
 from app.core.redis import get_redis
 from app.core.security import verify_token
+from app.db.session import async_session_factory
+from app.services import ride_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
@@ -60,6 +61,11 @@ async def ride_websocket(
     except (JWTError, ValueError):
         await websocket.close(code=4001)
         return
+
+    async with async_session_factory() as db:
+        if not await ride_service.rider_owns_ride(db, UUID(user_id), ride_id):
+            await websocket.close(code=4003)
+            return
 
     await websocket.accept()
     key = str(ride_id)

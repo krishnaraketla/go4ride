@@ -1,0 +1,302 @@
+<mxfile host="app.diagrams.net" agent="go4ride-backend" version="22.1.0" type="device">
+  <diagram id="booking-flow" name="Booking Flow">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title1" value="Go4Ride — Booking &amp; WebSocket Flow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="520" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle1" value="Rider app ↔ FastAPI REST + live status over WebSocket (Redis pub/sub)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=12;fontColor=#64748b" vertex="1" parent="1">
+          <mxGeometry x="40" y="55" width="600" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane-rider" value="Rider App" style="swimlane;horizontal=0;startSize=30;fillColor=#dbeafe;strokeColor=#2563eb;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="1520" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane-api" value="REST API (/api/v1)" style="swimlane;horizontal=0;startSize=30;fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="220" width="1520" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane-svc" value="Ride Service + DB + Redis" style="swimlane;horizontal=0;startSize=30;fillColor=#fef3c7;strokeColor=#d97706;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="360" width="1520" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane-ws" value="WebSocket Hub" style="swimlane;horizontal=0;startSize=30;fillColor=#ede9fe;strokeColor=#7c3aed;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="500" width="1520" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="auth-note" value="Prerequisite: Bearer access_token&#xa;(POST /auth/request-otp → verify-otp)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#94a3b8;fontSize=11;align=left;spacingLeft=8" vertex="1" parent="lane-rider">
+          <mxGeometry x="20" y="45" width="280" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="r1" value="Enter pickup &amp; drop&#xa;(lat/lng)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2563eb" vertex="1" parent="lane-rider">
+          <mxGeometry x="340" y="45" width="140" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="r2" value="Select ride type&#xa;(from quote options)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2563eb" vertex="1" parent="lane-rider">
+          <mxGeometry x="700" y="45" width="150" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="r3" value="Show live status UI&#xa;(listen on WS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2563eb" vertex="1" parent="lane-rider">
+          <mxGeometry x="1080" y="45" width="150" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="r4" value="Optional: Cancel ride" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626;dashed=1" vertex="1" parent="lane-rider">
+          <mxGeometry x="1320" y="45" width="140" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="a1" value="POST /rides/quote&#xa;(no auth)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#16a34a;fontStyle=1" vertex="1" parent="lane-api">
+          <mxGeometry x="320" y="50" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a2" value="POST /rides&#xa;Bearer + optional&#xa;Idempotency-Key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#16a34a;fontStyle=1" vertex="1" parent="lane-api">
+          <mxGeometry x="680" y="45" width="170" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="a3" value="POST /rides/{id}/cancel&#xa;Bearer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#dc2626;dashed=1" vertex="1" parent="lane-api">
+          <mxGeometry x="1300" y="50" width="170" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1" value="geo_service: route + reverse geocode&#xa;fare_service: all ride types + fares&#xa;supply_service: drivers_nearby, pickup ETA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d97706;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="lane-svc">
+          <mxGeometry x="280" y="45" width="320" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2" value="Persist Ride (status requested)&#xa;→ searching_driver&#xa;Publish WS events (Redis ride:{id})&#xa;mock_driver: schedule lifecycle (dev)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d97706;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="lane-svc">
+          <mxGeometry x="640" y="40" width="300" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3" value="Transition → cancelled&#xa;Publish cancelled event" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#dc2626;dashed=1;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="lane-svc">
+          <mxGeometry x="1280" y="50" width="220" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1" value="WS /ws/rides/{ride_id}?token=access_token&#xa;Verify JWT → rider owns ride → accept" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7c3aed;fontStyle=1;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="lane-ws">
+          <mxGeometry x="960" y="35" width="300" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="w2" value="Send: { type: connected, ride_id, user_id }&#xa;Subscribe Redis channel ride:{ride_id}&#xa;Fan-out status JSON to all WS clients" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7c3aed;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="lane-ws">
+          <mxGeometry x="960" y="100" width="380" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="w3" value="Close 4001: bad token&#xa;Close 4003: not found / not owner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#dc2626;fontSize=10" vertex="1" parent="lane-ws">
+          <mxGeometry x="40" y="90" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-r1-a1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=2;strokeColor=#2563eb" edge="1" parent="1" source="r1" target="a1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-a1-s1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=2;strokeColor=#16a34a" edge="1" parent="1" source="a1" target="s1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-s1-r2" value="200: addresses, route, options[], quote_expires_at" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=open;endFill=0;dashed=1;strokeColor=#64748b;fontSize=10" edge="1" parent="1" source="s1" target="r2">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="440" y="200"/><mxPoint x="775" y="200"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e-r2-a2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=2;strokeColor=#2563eb" edge="1" parent="1" source="r2" target="a2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-a2-s2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=2;strokeColor=#16a34a" edge="1" parent="1" source="a2" target="s2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-s2-r3" value="200: id, status searching_driver" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=open;endFill=0;dashed=1;strokeColor=#64748b;fontSize=10" edge="1" parent="1" source="s2" target="r3">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="790" y="340"/><mxPoint x="1155" y="340"/><mxPoint x="1155" y="200"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e-r3-w1" value="connect immediately after book" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=2;strokeColor=#7c3aed;fontSize=10" edge="1" parent="1" source="r3" target="w1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-s2-w2" value="Redis PUBLISH ride:{id}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=2;strokeColor=#d97706;dashed=1;fontSize=10" edge="1" parent="1" source="s2" target="w2">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="790" y="480"/><mxPoint x="1100" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e-w2-r3" value="status events (JSON)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=open;endFill=0;dashed=1;strokeColor=#7c3aed;fontSize=10" edge="1" parent="1" source="w2" target="r3">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1300" y="580"/><mxPoint x="1300" y="200"/><mxPoint x="1230" y="200"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e-r4-a3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=1;strokeColor=#dc2626;dashed=1" edge="1" parent="1" source="r4" target="a3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-a3-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=1;strokeColor=#dc2626;dashed=1" edge="1" parent="1" source="a3" target="s3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-s3-w2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;strokeWidth=1;strokeColor=#dc2626;dashed=1" edge="1" parent="1" source="s3" target="w2">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1390" y="480"/><mxPoint x="1180" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="resp-box" value="REST responses use ApiResponse wrapper:&#xa;{ success, message, data }&#xa;&#xa;WebSocket status events are flat JSON (no wrapper):&#xa;{ ride_id, status, message, created_at, driver? }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;align=left;spacingLeft=10;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="420" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="poll-note" value="Fallback (avoid in happy path):&#xa;GET /rides/{id}/status — poll if WS unavailable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;align=left;spacingLeft=10;fontSize=11;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="480" y="700" width="320" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="hist-note" value="After terminal state:&#xa;GET /rides/history, GET /rides/{id}/invoice (completed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;align=left;spacingLeft=10;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="820" y="700" width="340" height="70" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="ws-lifecycle" name="WebSocket &amp; Status Lifecycle">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title2" value="WebSocket architecture &amp; ride status lifecycle" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="560" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="arch-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#7c3aed;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="720" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="arch-title" value="WebSocket hub (app/api/v1/ws.py)" style="text;html=1;strokeColor=none;fillColor=none;fontStyle=1;fontSize=14;fontColor=#5b21b6" vertex="1" parent="1">
+          <mxGeometry x="60" y="90" width="400" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="client" value="Rider client" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dbeafe;strokeColor=#2563eb" vertex="1" parent="1">
+          <mxGeometry x="80" y="160" width="40" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws-endpoint" value="WS /api/v1/ws/rides/{ride_id}&#xa;?token=&lt;access_token&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="200" y="170" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws-auth" value="1. verify_token (access)&#xa;2. rider_owns_ride&#xa;3. websocket.accept()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7c3aed;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="460" y="160" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws-conn" value="_connections[ride_id] += WebSocket&#xa;_subscribe_redis(ride_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7c3aed;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="200" y="270" width="260" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="redis" value="Redis&#xa;PUB/SUB&#xa;channel: ride:{ride_id}" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#fef3c7;strokeColor=#d97706;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="520" y="250" width="120" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="ride-svc-pub" value="ride_service._record_status()&#xa;→ publish_ride_event()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d97706;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="200" y="360" width="240" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws-push" value="Listener: pubsub message →&#xa;ws.send_text(JSON) to all subscribers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7c3aed;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="480" y="360" width="260" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="keepalive" value="Client may send text/ping; server loops receive_text() until disconnect" style="text;html=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#64748b;align=left" vertex="1" parent="1">
+          <mxGeometry x="60" y="450" width="400" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec1" style="endArrow=block;strokeWidth=2;strokeColor=#2563eb" edge="1" parent="1" source="client" target="ws-endpoint">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec2" style="endArrow=block;strokeWidth=2;strokeColor=#7c3aed" edge="1" parent="1" source="ws-endpoint" target="ws-auth">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec3" style="endArrow=block;strokeWidth=2;strokeColor=#7c3aed" edge="1" parent="1" source="ws-auth" target="ws-conn">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="560" y="250"/><mxPoint x="330" y="250"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="ec4" value="connected JSON" style="endArrow=open;endFill=0;dashed=1;strokeColor=#7c3aed;fontSize=10" edge="1" parent="1" source="ws-conn" target="client">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="100" y="300"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="ec5" style="endArrow=block;strokeWidth=2;strokeColor=#7c3aed;dashed=1" edge="1" parent="1" source="ws-conn" target="redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec6" style="endArrow=block;strokeWidth=2;strokeColor=#d97706" edge="1" parent="1" source="ride-svc-pub" target="redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec7" style="endArrow=block;strokeWidth=2;strokeColor=#7c3aed;dashed=1" edge="1" parent="1" source="redis" target="ws-push">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec8" value="status events" style="endArrow=open;endFill=0;dashed=1;strokeColor=#7c3aed;fontSize=10" edge="1" parent="1" source="ws-push" target="client">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="100" y="390"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="state-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="800" y="80" width="760" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="state-title" value="Ride status lifecycle (VALID_TRANSITIONS)" style="text;html=1;strokeColor=none;fillColor=none;fontStyle=1;fontSize=14;fontColor=#166534" vertex="1" parent="1">
+          <mxGeometry x="820" y="90" width="400" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-req" value="requested" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#16a34a" vertex="1" parent="1">
+          <mxGeometry x="840" y="150" width="100" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-search" value="searching_driver" style="ellipse;whiteSpace=wrap;html=1;fillColor=#bbf7d0;strokeColor=#16a34a;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1000" y="150" width="130" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-assign" value="driver_assigned&#xa;(+ driver in WS)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#16a34a" vertex="1" parent="1">
+          <mxGeometry x="1180" y="150" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-arrive" value="driver_arrived" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#16a34a" vertex="1" parent="1">
+          <mxGeometry x="1360" y="150" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-progress" value="in_progress" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#16a34a" vertex="1" parent="1">
+          <mxGeometry x="1360" y="260" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-done" value="completed&#xa;(terminal)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1180" y="350" width="110" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-cancel" value="cancelled&#xa;(terminal)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="900" y="350" width="110" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-e1" style="endArrow=block;strokeColor=#16a34a" edge="1" parent="1" source="st-req" target="st-search">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-e2" style="endArrow=block;strokeColor=#16a34a" edge="1" parent="1" source="st-search" target="st-assign">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-e3" style="endArrow=block;strokeColor=#16a34a" edge="1" parent="1" source="st-assign" target="st-arrive">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-e4" style="endArrow=block;strokeColor=#16a34a" edge="1" parent="1" source="st-arrive" target="st-progress">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="st-e5" style="endArrow=block;strokeColor=#16a34a" edge="1" parent="1" source="st-progress" target="st-done">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1415" y="340"/><mxPoint x="1235" y="340"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="st-e6" value="POST /cancel&#xa;(CANCELLABLE)" style="endArrow=block;strokeColor=#dc2626;fontSize=10" edge="1" parent="1" source="st-search" target="st-cancel">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1065" y="280"/><mxPoint x="955" y="280"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="st-e7" value="cancel" style="endArrow=block;strokeColor=#dc2626;fontSize=10" edge="1" parent="1" source="st-assign" target="st-cancel">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1245" y="280"/><mxPoint x="955" y="280"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="st-e8" value="cancel" style="endArrow=block;strokeColor=#dc2626;fontSize=10" edge="1" parent="1" source="st-arrive" target="st-cancel">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1415" y="280"/><mxPoint x="955" y="280"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="mock-note" value="Dev: mock_driver_enabled schedules automatic transitions&#xa;(assign → arrived → in_progress → completed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#f59e0b;align=left;spacingLeft=8;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="820" y="430" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws-events" value="Each transition emits a WebSocket event via Redis.&#xa;driver object included for: driver_assigned, driver_arrived, in_progress, completed&#xa;(and cancelled if driver was already assigned)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;align=left;spacingLeft=10;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="40" y="540" width="500" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="example-events" value="Example WS payloads (see docs/booking_flow_api.csv):&#xa;• connected: { type, ride_id, user_id }&#xa;• searching_driver: { ride_id, status, message, created_at }&#xa;• driver_assigned: above + driver { id, name, phone, vehicle_*, lat, lng, eta_min }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;align=left;spacingLeft=10;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="560" y="540" width="520" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="multi-instance" value="Multi-instance deploy: all API replicas subscribe to the same Redis channel, so WS clients on any instance receive events." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#3b82f6;align=left;spacingLeft=10;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="1100" y="540" width="460" height="60" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="simple-overview" name="Simple Overview">
+    <mxGraphModel dx="1200" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="480" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="simple-title" value="Go4Ride booking — at a glance" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=22;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="200" y="40" width="800" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="simple-rider" value="Rider" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dbeafe;strokeColor=#2563eb;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="60" y="200" width="50" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="s-step1" value="1. Quote&#xa;&#xa;pickup + drop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontSize=14;fontStyle=1;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="180" y="190" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s-step2" value="2. Get quote&#xa;&#xa;fares &amp; options" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=14;fontStyle=1;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="380" y="190" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s-step3" value="3. Book&#xa;&#xa;confirm ride" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=14;fontStyle=1;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="580" y="190" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s-step4" value="4. Subscribe&#xa;&#xa;WebSocket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontSize=14;fontStyle=1;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="780" y="190" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s-step5" value="5. Live updates&#xa;&#xa;driver, trip status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontSize=14;fontStyle=1;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="980" y="190" width="160" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s-api1" value="POST /rides/quote" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;fontColor=#64748b;align=center" vertex="1" parent="1">
+          <mxGeometry x="180" y="290" width="140" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="s-api3" value="POST /rides" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;fontColor=#64748b;align=center" vertex="1" parent="1">
+          <mxGeometry x="580" y="290" width="140" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="s-api4" value="WS /ws/rides/{id}" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;fontColor=#64748b;align=center" vertex="1" parent="1">
+          <mxGeometry x="780" y="290" width="140" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="se1" style="endArrow=block;endFill=1;strokeWidth=3;strokeColor=#334155" edge="1" parent="1" source="simple-rider" target="s-step1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="se2" style="endArrow=block;endFill=1;strokeWidth=3;strokeColor=#334155" edge="1" parent="1" source="s-step1" target="s-step2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="se3" style="endArrow=block;endFill=1;strokeWidth=3;strokeColor=#334155" edge="1" parent="1" source="s-step2" target="s-step3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="se4" style="endArrow=block;endFill=1;strokeWidth=3;strokeColor=#334155" edge="1" parent="1" source="s-step3" target="s-step4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="se5" style="endArrow=block;endFill=1;strokeWidth=3;strokeColor=#334155" edge="1" parent="1" source="s-step4" target="s-step5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="se-push" value="server pushes events" style="endArrow=open;endFill=0;strokeWidth=2;strokeColor=#7c3aed;dashed=1;fontSize=11" edge="1" parent="1" source="s-step5" target="simple-rider">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1060" y="160"/><mxPoint x="85" y="160"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="simple-foot" value="Log in first (OTP) · Pick a ride type from the quote · Connect WebSocket right after booking" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontColor=#64748b" vertex="1" parent="1">
+          <mxGeometry x="120" y="340" width="960" height="30" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

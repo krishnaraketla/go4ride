@@ -1,9 +1,17 @@
 import math
+from dataclasses import dataclass
 from decimal import Decimal
 
 import httpx
 
 from app.core.config import get_settings
+
+
+@dataclass(frozen=True)
+class RouteInfo:
+    distance_km: Decimal
+    duration_min: Decimal
+    polyline: str | None = None
 
 
 async def reverse_geocode(lat: Decimal, lng: Decimal) -> str:
@@ -15,18 +23,29 @@ async def reverse_geocode(lat: Decimal, lng: Decimal) -> str:
     return await _mapbox_reverse(lat, lng)
 
 
+async def get_route(
+    pickup_lat: Decimal,
+    pickup_lng: Decimal,
+    drop_lat: Decimal,
+    drop_lng: Decimal,
+) -> RouteInfo:
+    settings = get_settings()
+    if settings.maps_provider == "mock":
+        distance_km, duration_min = _haversine_estimate(pickup_lat, pickup_lng, drop_lat, drop_lng)
+        return RouteInfo(distance_km=distance_km, duration_min=duration_min, polyline=None)
+    if settings.maps_provider == "google":
+        return await _google_directions(pickup_lat, pickup_lng, drop_lat, drop_lng)
+    return await _mapbox_directions_route(pickup_lat, pickup_lng, drop_lat, drop_lng)
+
+
 async def get_route_distance_duration(
     pickup_lat: Decimal,
     pickup_lng: Decimal,
     drop_lat: Decimal,
     drop_lng: Decimal,
 ) -> tuple[Decimal, Decimal]:
-    settings = get_settings()
-    if settings.maps_provider == "mock":
-        return _haversine_estimate(pickup_lat, pickup_lng, drop_lat, drop_lng)
-    if settings.maps_provider == "google":
-        return await _google_distance_matrix(pickup_lat, pickup_lng, drop_lat, drop_lng)
-    return await _mapbox_directions(pickup_lat, pickup_lng, drop_lat, drop_lng)
+    route = await get_route(pickup_lat, pickup_lng, drop_lat, drop_lng)
+    return route.distance_km, route.duration_min
 
 
 def haversine_distance_m(lat1: Decimal, lng1: Decimal, lat2: Decimal, lng2: Decimal) -> int:
@@ -65,24 +84,30 @@ async def _google_reverse(lat: Decimal, lng: Decimal) -> str:
     return f"Address at {lat}, {lng}"
 
 
-async def _google_distance_matrix(
+async def _google_directions(
     pickup_lat: Decimal, pickup_lng: Decimal, drop_lat: Decimal, drop_lng: Decimal
-) -> tuple[Decimal, Decimal]:
+) -> RouteInfo:
     settings = get_settings()
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            "https://maps.googleapis.com/maps/api/distancematrix/json",
+            "https://maps.googleapis.com/maps/api/directions/json",
             params={
-                "origins": f"{pickup_lat},{pickup_lng}",
-                "destinations": f"{drop_lat},{drop_lng}",
+                "origin": f"{pickup_lat},{pickup_lng}",
+                "destination": f"{drop_lat},{drop_lng}",
                 "key": settings.maps_api_key,
             },
         )
         data = resp.json()
-        element = data["rows"][0]["elements"][0]
-        distance_m = element["distance"]["value"]
-        duration_s = element["duration"]["value"]
-        return Decimal(str(round(distance_m / 1000, 2))), Decimal(str(round(duration_s / 60, 2)))
+        route = data["routes"][0]
+        leg = route["legs"][0]
+        distance_m = leg["distance"]["value"]
+        duration_s = leg["duration"]["value"]
+        polyline = route.get("overview_polyline", {}).get("points")
+        return RouteInfo(
+            distance_km=Decimal(str(round(distance_m / 1000, 2))),
+            duration_min=Decimal(str(round(duration_s / 60, 2))),
+            polyline=polyline,
+        )
 
 
 async def _mapbox_reverse(lat: Decimal, lng: Decimal) -> str:
@@ -98,19 +123,22 @@ async def _mapbox_reverse(lat: Decimal, lng: Decimal) -> str:
     return f"Address at {lat}, {lng}"
 
 
-async def _mapbox_directions(
+async def _mapbox_directions_route(
     pickup_lat: Decimal, pickup_lng: Decimal, drop_lat: Decimal, drop_lng: Decimal
-) -> tuple[Decimal, Decimal]:
+) -> RouteInfo:
     settings = get_settings()
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"https://api.mapbox.com/directions/v5/mapbox/driving/{lng1},{lat1};{lng2},{lat2}".format(
-                lat1=pickup_lat, lng1=pickup_lng, lat2=drop_lat, lng2=drop_lng
-            ),
-            params={"access_token": settings.maps_api_key},
+            f"https://api.mapbox.com/directions/v5/mapbox/driving/{pickup_lng},{pickup_lat};{drop_lng},{drop_lat}",
+            params={
+                "access_token": settings.maps_api_key,
+                "geometries": "polyline",
+            },
         )
         data = resp.json()
         route = data["routes"][0]
-        distance_km = Decimal(str(round(route["distance"] / 1000, 2)))
-        duration_min = Decimal(str(round(route["duration"] / 60, 2)))
-        return distance_km, duration_min
+        return RouteInfo(
+            distance_km=Decimal(str(round(route["distance"] / 1000, 2))),
+            duration_min=Decimal(str(round(route["duration"] / 60, 2))),
+            polyline=route.get("geometry"),
+        )

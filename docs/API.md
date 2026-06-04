@@ -472,40 +472,11 @@ With `MAPS_PROVIDER=google` or `mapbox` and a valid API key, `formatted_address`
 
 ### Rides
 
-**Auth:** Bearer (rider) for create/cancel/status/detail/history. Ride types and estimate are public.
+**Auth:** Bearer (rider) for create/cancel/status/detail/history. `POST /rides/quote` is public.
 
-#### `GET /ride-types`
+#### `POST /rides/quote`
 
-List active vehicle categories (e.g. mini, sedan).
-
-**Auth:** None
-
-**Response `200`**
-
-```json
-[
-  {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "slug": "mini",
-    "name": "Go4 Mini",
-    "description": "Affordable compact rides",
-    "icon_url": null
-  },
-  {
-    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-    "slug": "sedan",
-    "name": "Go4 Sedan",
-    "description": "Comfortable sedan rides",
-    "icon_url": null
-  }
-]
-```
-
----
-
-#### `POST /rides/estimate`
-
-Get distance, duration, and fare quote before booking.
+Preview all active ride types with fare and ETA for a route (single Directions/route call + reverse geocode).
 
 **Auth:** None
 
@@ -514,24 +485,42 @@ Get distance, duration, and fare quote before booking.
 ```json
 {
   "pickup": { "lat": "12.9716", "lng": "77.5946" },
-  "drop": { "lat": "12.9352", "lng": "77.6245" },
-  "ride_type_slug": "mini"
+  "drop": { "lat": "12.9352", "lng": "77.6245" }
 }
 ```
 
-**Response `200`**
+**Response `200`** (`data` payload)
 
 ```json
 {
-  "distance_km": "8.42",
-  "duration_min": "16.84",
-  "estimated_fare": "142.68",
+  "pickup_address": "MG Road, Bengaluru, Karnataka, India",
+  "drop_address": "Koramangala, Bengaluru, Karnataka, India",
+  "route": {
+    "distance_km": "5.20",
+    "duration_min": "18.00",
+    "polyline": null
+  },
   "currency": "INR",
-  "surge_multiplier": "1.00"
+  "surge_multiplier": "1.00",
+  "quote_expires_at": "2026-06-02T10:35:00Z",
+  "options": [
+    {
+      "slug": "mini",
+      "name": "Go4 Mini",
+      "description": "Affordable compact rides",
+      "icon_url": null,
+      "available": true,
+      "drivers_nearby": 1,
+      "estimated_fare": "120.00",
+      "pickup_eta_min": 5,
+      "trip_duration_min": 18,
+      "total_eta_min": 23
+    }
+  ]
 }
 ```
 
-**Errors:** `404 RIDE_TYPE_NOT_FOUND`, `404 FARE_RULE_NOT_FOUND`
+**Errors:** `404 FARE_RULE_NOT_FOUND`
 
 ---
 
@@ -738,9 +727,10 @@ Example (`driver_assigned`):
 **Close codes**
 
 
-| Code   | Meaning                  |
-| ------ | ------------------------ |
-| `4001` | Invalid or expired token |
+| Code   | Meaning                         |
+| ------ | ------------------------------- |
+| `4001` | Invalid or expired token        |
+| `4003` | Ride not found or not your ride |
 
 
 **Client notes**
@@ -756,14 +746,11 @@ Example (`driver_assigned`):
 ```text
 1. POST /auth/request-otp       → OTP sent, is_new_user flag
 2. POST /auth/verify-otp        → access_token, refresh_token (account auto-created if new)
-3. GET  /location/reverse-geocode?lat=...&lng=...  (pickup)
-4. GET  /location/reverse-geocode?lat=...&lng=...  (drop)
-5. GET  /ride-types
-6. POST /rides/estimate         → fare preview
-7. POST /rides                  → ride id, status searching_driver
-8. WS   /ws/rides/{id}?token=... → live status events
-9. (optional) POST /rides/{id}/cancel
-10. GET /rides/history          → past rides
+3. POST /rides/quote            → all types, fares, ETAs, addresses (pickup/drop lat/lng only)
+4. POST /rides                  → ride id, status searching_driver (use quote addresses)
+5. WS   /ws/rides/{id}?token=... → live status events (no polling)
+6. (optional) POST /rides/{id}/cancel
+7. GET /rides/history           → past rides
 ```
 
 ### cURL examples
@@ -784,15 +771,14 @@ curl -X POST http://localhost:8000/api/v1/auth/verify-otp \
   -d '{"phone":"+919876543210","code":"482910","name":"Krishna"}'
 ```
 
-**Estimate fare**
+**Quote ride (all types)**
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/rides/estimate \
+curl -X POST http://localhost:8000/api/v1/rides/quote \
   -H "Content-Type: application/json" \
   -d '{
     "pickup":{"lat":"12.9716","lng":"77.5946"},
-    "drop":{"lat":"12.9352","lng":"77.6245"},
-    "ride_type_slug":"mini"
+    "drop":{"lat":"12.9352","lng":"77.6245"}
   }'
 ```
 
