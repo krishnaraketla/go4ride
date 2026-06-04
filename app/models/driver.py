@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.enums import DocumentStatus, DocumentType, DriverStatus, KycStatus
+from app.models.enums import DocumentStatus, DocumentType, DriverStatus, KycStatus, OnboardingStatus, VehicleType
 
 
 class DriverProfile(Base):
@@ -32,8 +32,18 @@ class DriverProfile(Base):
     kyc_status: Mapped[KycStatus] = mapped_column(
         Enum(KycStatus), default=KycStatus.pending
     )
+    onboarding_status: Mapped[OnboardingStatus] = mapped_column(
+        Enum(OnboardingStatus), default=OnboardingStatus.pending
+    )
     rating: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), nullable=True)
     total_rides: Mapped[int] = mapped_column(default=0)
+
+    # Vehicle details
+    vehicle_type: Mapped[VehicleType | None] = mapped_column(
+        Enum(VehicleType), nullable=True
+    )
+    vehicle_make: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    vehicle_year: Mapped[int | None] = mapped_column(nullable=True)
 
     user: Mapped["User"] = relationship()  # type: ignore[name-defined]
     ride_type: Mapped["RideType"] = relationship()  # type: ignore[name-defined]

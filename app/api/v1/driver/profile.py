@@ -17,6 +17,12 @@ from app.schemas.driver import (
     DriverEarningsResponse,
     DriverProfileResponse,
     DriverStatsResponse,
+    MenuInbox,
+    MenuItem,
+    MenuProfileSummary,
+    MenuSubscription,
+    MenuWallet,
+    ProfileMenuResponse,
     UpdateDriverProfileRequest,
 )
 
@@ -135,6 +141,51 @@ async def get_earnings(
         this_month=Decimal("0.00"),
         total=Decimal("0.00"),
         currency="INR",
+    )
+
+
+@router.get("/menu", response_model=ProfileMenuResponse)
+async def get_profile_menu(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    driver: Annotated[User, Depends(get_current_driver)],
+):
+    """Aggregated side-menu endpoint — returns everything the menu screen needs in one call."""
+    result = await db.execute(
+        select(DriverProfile)
+        .where(DriverProfile.user_id == driver.id)
+        .options(selectinload(DriverProfile.ride_type))
+    )
+    profile = result.scalar_one_or_none()
+    rating = float(profile.rating) if profile and profile.rating else None
+
+    menu_items = [
+        MenuItem(key="inbox",           label="Inbox",           badge=0,    visible=True),
+        MenuItem(key="rate_card",       label="My Rate Card",    visible=True),
+        MenuItem(key="wallet",          label="Wallet",          visible=True),
+        MenuItem(key="instant_payout",  label="Instant Payout",  visible=True),
+        MenuItem(key="subscription",    label="My Subscription", visible=True),
+        MenuItem(key="ride_filters",    label="Ride Filters",    visible=True),
+        MenuItem(key="insights",        label="Insights",        visible=True),
+        MenuItem(key="manage_vehicles", label="Manage Vehicles", visible=True),
+        MenuItem(key="documents",       label="Documents",       visible=True),
+        MenuItem(key="refer_rider",     label="Refer a Rider",   visible=True),
+        MenuItem(key="refer_driver",    label="Refer a Driver",  visible=True),
+        MenuItem(key="account",         label="Account",         visible=True),
+    ]
+
+    return ProfileMenuResponse(
+        success=True,
+        profile=MenuProfileSummary(
+            driver_id=str(driver.id),
+            name=driver.name,
+            avatar_url=getattr(driver, "avatar_url", None),
+            phone=driver.phone,
+            rating=rating,
+        ),
+        inbox=MenuInbox(unread_count=0),
+        wallet=MenuWallet(balance=0.0, currency="INR"),
+        subscription=MenuSubscription(),
+        menu_items=menu_items,
     )
 
 

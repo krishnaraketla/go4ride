@@ -49,6 +49,22 @@ class DocumentType(str, enum.Enum):
 
 
 class DocumentStatus(str, enum.Enum):
+    not_uploaded = "not_uploaded"
     pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
+class VehicleType(str, enum.Enum):
+    auto = "auto"
+    taxi = "taxi"
+    cab = "cab"
+
+
+class OnboardingStatus(str, enum.Enum):
+    pending = "pending"
+    documents_uploaded = "documents_uploaded"
+    vehicle_submitted = "vehicle_submitted"
+    under_review = "under_review"
     approved = "approved"
     rejected = "rejected"

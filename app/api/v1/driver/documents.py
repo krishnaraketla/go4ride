@@ -96,17 +96,85 @@ async def get_kyc_status(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
+    from app.models.enums import KycStatus
+    from app.schemas.driver import DocumentStatusItem, OverallProgress
+
     profile_result = await db.execute(
         select(DriverProfile).where(DriverProfile.user_id == driver.id)
     )
     profile = profile_result.scalar_one_or_none()
+    kyc_status = profile.kyc_status if profile else KycStatus.pending
 
+    # Fetch uploaded documents keyed by type
     docs_result = await db.execute(
         select(DriverDocument).where(DriverDocument.driver_user_id == driver.id)
-        .order_by(DriverDocument.created_at.desc())
     )
-    docs = docs_result.scalars().all()
+    uploaded = {d.document_type.value: d for d in docs_result.scalars().all()}
 
-    from app.models.enums import KycStatus
-    kyc_status = profile.kyc_status if profile else KycStatus.pending
-    return KycStatusResponse(kyc_status=kyc_status, documents=list(docs))
+    # Define all required document types with metadata
+    required_docs = [
+        {
+            "type": "license",
+            "label": "Driver License",
+            "description": "Front & back side of license",
+            "sides_required": ["front", "back"],
+        },
+        {
+            "type": "registration",
+            "label": "Vehicle Registration",
+            "description": "RC Certificate",
+            "sides_required": ["front"],
+        },
+        {
+            "type": "insurance",
+            "label": "Insurance",
+            "description": "Active certificate of insurance",
+            "sides_required": ["front"],
+        },
+        {
+            "type": "profile_photo",
+            "label": "Profile Photo",
+            "description": "Clear front-facing photo",
+            "sides_required": ["front"],
+        },
+    ]
+
+    document_items = []
+    uploaded_count = 0
+    for doc_def in required_docs:
+        doc = uploaded.get(doc_def["type"])
+        if doc:
+            uploaded_count += 1
+            status = doc.status.value
+            uploaded_at = doc.created_at
+            rejection_reason = doc.rejection_reason
+        else:
+            status = "not_uploaded"
+            uploaded_at = None
+            rejection_reason = None
+
+        document_items.append(
+            DocumentStatusItem(
+                type=doc_def["type"],
+                label=doc_def["label"],
+                description=doc_def["description"],
+                status=status,
+                sides_required=doc_def["sides_required"],
+                uploaded_at=uploaded_at,
+                rejection_reason=rejection_reason,
+            )
+        )
+
+    total = len(required_docs)
+    percentage = int((uploaded_count / total) * 100)
+
+    return KycStatusResponse(
+        success=True,
+        kyc_status=kyc_status,
+        overall_progress=OverallProgress(
+            uploaded=uploaded_count,
+            total=total,
+            percentage=percentage,
+        ),
+        documents=document_items,
+    )

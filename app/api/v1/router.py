@@ -18,6 +18,7 @@ from app.api.v1.driver import (
     auth as driver_auth,
     availability as driver_availability,
     documents as driver_documents,
+    onboarding as driver_onboarding,
     profile as driver_profile,
     rides as driver_rides,
 )
@@ -42,6 +43,7 @@ api_router.include_router(ws.router)
 _driver_prefix = "/driver"
 api_router.include_router(driver_auth.router, prefix=_driver_prefix)
 api_router.include_router(driver_profile.router, prefix=_driver_prefix)
-api_router.include_router(driver_availability.router, prefix=_driver_prefix)
+api_router.include_router(driver_availability.router)           # already has /driver prefix internally
+api_router.include_router(driver_onboarding.router, prefix=_driver_prefix)
 api_router.include_router(driver_rides.router, prefix=_driver_prefix)
 api_router.include_router(driver_documents.router, prefix=_driver_prefix)
