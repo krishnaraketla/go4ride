@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import DocumentStatus, DocumentType, DriverStatus, KycStatus
+from app.models.enums import DocumentStatus, DocumentType, DriverStatus, KycStatus, OnboardingStatus, VehicleType
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +129,50 @@ class DriverStatsResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Profile Menu (Screen 10)
+# ---------------------------------------------------------------------------
+
+class MenuInbox(BaseModel):
+    unread_count: int = 0
+
+
+class MenuWallet(BaseModel):
+    balance: float = 0.0
+    currency: str = "INR"
+
+
+class MenuSubscription(BaseModel):
+    plan: str = "free"
+    status: str = "inactive"
+    expires_at: str | None = None
+
+
+class MenuItem(BaseModel):
+    key: str
+    label: str
+    badge: int | None = None
+    visible: bool = True
+
+
+class MenuProfileSummary(BaseModel):
+    driver_id: str
+    name: str | None
+    avatar_url: str | None
+    phone: str
+    rating: float | None
+    currency: str = "INR"
+
+
+class ProfileMenuResponse(BaseModel):
+    success: bool = True
+    profile: MenuProfileSummary
+    inbox: MenuInbox
+    wallet: MenuWallet
+    subscription: MenuSubscription
+    menu_items: list[MenuItem]
+
+
+# ---------------------------------------------------------------------------
 # Availability / Location
 # ---------------------------------------------------------------------------
 
@@ -225,6 +269,65 @@ class DriverRideHistoryResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Onboarding — Vehicle
+# ---------------------------------------------------------------------------
+
+class VehicleSubmitRequest(BaseModel):
+    vehicle_type: VehicleType
+    make: str = Field(..., examples=["Maruti", "Tata"])
+    model: str = Field(..., examples=["Swift", "Nexon"])
+    year: int = Field(..., ge=2000, le=2030, examples=[2022])
+    plate_number: str = Field(..., examples=["TS09AB1234"])
+    color: str = Field(..., examples=["White"])
+
+
+class VehiclePhotos(BaseModel):
+    front: str | None = None
+    back: str | None = None
+    left: str | None = None
+    right: str | None = None
+
+
+class VehicleResponse(BaseModel):
+    vehicle_id: str
+    driver_id: str
+    type: str
+    make: str
+    model: str
+    year: int
+    plate_number: str
+    color: str
+    photos: VehiclePhotos
+    status: str
+
+
+class VehicleSubmitResponse(BaseModel):
+    success: bool = True
+    vehicle: VehicleResponse
+    onboarding_step: str = "submit_application"
+
+
+# ---------------------------------------------------------------------------
+# Onboarding — Submit Application
+# ---------------------------------------------------------------------------
+
+class VerificationProgress(BaseModel):
+    documents_uploaded: bool
+    vehicle_details_submitted: bool
+    face_verification_completed: bool
+
+
+class SubmitApplicationResponse(BaseModel):
+    success: bool = True
+    application_id: str
+    onboarding_status: str
+    verification_progress: VerificationProgress
+    estimated_review_time: str = "24 hours"
+    submitted_at: datetime
+    message: str
+
+
+# ---------------------------------------------------------------------------
 # Documents / KYC
 # ---------------------------------------------------------------------------
 
@@ -257,6 +360,24 @@ class DocumentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DocumentStatusItem(BaseModel):
+    type: str
+    label: str
+    description: str
+    status: str
+    sides_required: list[str]
+    uploaded_at: datetime | None
+    rejection_reason: str | None
+
+
+class OverallProgress(BaseModel):
+    uploaded: int
+    total: int
+    percentage: int
+
+
 class KycStatusResponse(BaseModel):
+    success: bool = True
     kyc_status: KycStatus
-    documents: list[DocumentResponse]
+    overall_progress: OverallProgress
+    documents: list[DocumentStatusItem]
