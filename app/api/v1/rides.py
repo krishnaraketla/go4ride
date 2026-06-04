@@ -45,7 +45,7 @@ async def create_ride(
     return ok(ride, message="Ride booked")
 
 
-@router.get("/rides/history", response_model=ApiResponse[RideHistoryResponse])
+@router.get("/rides/history", response_model=ApiResponse[RideHistoryResponse], include_in_schema=False)
 async def ride_history(
     rider: Annotated[User, Depends(get_current_rider)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -65,7 +65,7 @@ async def ride_history(
     )
 
 
-@router.post("/rides/{ride_id}/repeat", response_model=ApiResponse[RepeatRideResponse])
+@router.post("/rides/{ride_id}/repeat", response_model=ApiResponse[RepeatRideResponse], include_in_schema=False)
 async def repeat_ride(
     ride_id: UUID,
     rider: Annotated[User, Depends(get_current_rider)],
@@ -77,7 +77,7 @@ async def repeat_ride(
     return ok(payload, message="Repeat ride payload retrieved")
 
 
-@router.post("/rides/{ride_id}/cancel", response_model=ApiResponse[RideResponse])
+@router.post("/rides/{ride_id}/cancel", response_model=ApiResponse[RideResponse], include_in_schema=False)
 async def cancel_ride(
     ride_id: UUID,
     rider: Annotated[User, Depends(get_current_rider)],
@@ -89,7 +89,7 @@ async def cancel_ride(
     return ok(ride, message="Ride cancelled")
 
 
-@router.get("/rides/{ride_id}/status", response_model=ApiResponse[RideStatusResponse])
+@router.get("/rides/{ride_id}/status", response_model=ApiResponse[RideStatusResponse], include_in_schema=False)
 async def ride_status(
     ride_id: UUID,
     rider: Annotated[User, Depends(get_current_rider)],
@@ -101,7 +101,7 @@ async def ride_status(
     return ok(status, message="Ride status retrieved")
 
 
-@router.get("/rides/{ride_id}", response_model=ApiResponse[RideResponse])
+@router.get("/rides/{ride_id}", response_model=ApiResponse[RideResponse], include_in_schema=False)
 async def get_ride(
     ride_id: UUID,
     rider: Annotated[User, Depends(get_current_rider)],
@@ -113,7 +113,7 @@ async def get_ride(
     return ok(ride, message="Ride retrieved")
 
 
-@router.get("/rides/{ride_id}/invoice", response_model=ApiResponse[InvoiceResponse])
+@router.get("/rides/{ride_id}/invoice", response_model=ApiResponse[InvoiceResponse], include_in_schema=False)
 async def ride_invoice(
     ride_id: UUID,
     rider: Annotated[User, Depends(get_current_rider)],
