@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
 from app.core.deps import get_current_driver
 from app.db.session import get_db
 from app.models.driver import DriverDocument, DriverProfile
@@ -24,6 +23,7 @@ from app.schemas.driver import (
     DocumentUploadUrlResponse,
     KycStatusResponse,
 )
+from app.services.s3_service import presigned_put_url
 
 router = APIRouter(prefix="/documents", tags=["Driver Documents"])
 
@@ -34,28 +34,8 @@ async def get_upload_url(
     driver: Annotated[User, Depends(get_current_driver)],
 ):
     """Return a presigned S3 PUT URL the client uses to upload the document."""
-    settings = get_settings()
     file_key = f"drivers/{driver.id}/{body.document_type.value}/{secrets.token_hex(16)}"
-
-    # If S3 is configured, generate a real presigned URL.
-    # Falling back to a placeholder so the app runs without AWS credentials.
-    try:
-        import boto3  # type: ignore[import]
-        from botocore.exceptions import NoCredentialsError  # type: ignore[import]
-
-        s3 = boto3.client("s3", region_name=getattr(settings, "aws_region", "ap-south-1"))
-        upload_url = s3.generate_presigned_url(
-            "put_object",
-            Params={
-                "Bucket": getattr(settings, "s3_bucket", "go4ride-kyc"),
-                "Key": file_key,
-                "ContentType": body.content_type,
-            },
-            ExpiresIn=900,
-        )
-    except Exception:
-        # In dev without AWS credentials, return a fake URL.
-        upload_url = f"https://s3.example.com/{file_key}?presigned=dev"
+    upload_url = presigned_put_url(file_key, body.content_type)
 
     return DocumentUploadUrlResponse(upload_url=upload_url, file_key=file_key, expires_in=900)
 

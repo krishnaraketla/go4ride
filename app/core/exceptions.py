@@ -28,3 +28,7 @@ def conflict(message: str, code: str = "CONFLICT") -> AppError:
 
 def too_many_requests(message: str, code: str = "RATE_LIMITED") -> AppError:
     return AppError(status.HTTP_429_TOO_MANY_REQUESTS, message, code)
+
+
+def service_unavailable(message: str, code: str = "SERVICE_UNAVAILABLE") -> AppError:
+    return AppError(status.HTTP_503_SERVICE_UNAVAILABLE, message, code)

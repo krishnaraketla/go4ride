@@ -1,3 +1,4 @@
+import secrets
 from typing import Annotated
 from uuid import UUID
 
@@ -6,7 +7,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import forbidden, unauthorized
+from app.core.config import get_settings
+from app.core.exceptions import forbidden, service_unavailable, unauthorized
 from app.core.security import verify_token
 from app.db.session import get_db
 from app.models.enums import UserRole
@@ -51,3 +53,13 @@ def get_idempotency_key(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> str | None:
     return idempotency_key
+
+
+async def verify_admin_key(
+    x_admin_key: Annotated[str | None, Header(alias="X-Admin-Key")] = None,
+) -> None:
+    settings = get_settings()
+    if not settings.admin_api_key:
+        raise service_unavailable("Admin API is not configured", "ADMIN_NOT_CONFIGURED")
+    if x_admin_key is None or not secrets.compare_digest(x_admin_key, settings.admin_api_key):
+        raise unauthorized("Invalid admin key", "UNAUTHORIZED")

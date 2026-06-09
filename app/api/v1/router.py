@@ -14,6 +14,7 @@ from app.api.v1 import (
     wallet,
     ws,
 )
+from app.api.v1.admin import drivers as admin_drivers
 from app.api.v1.driver import (
     auth as driver_auth,
     availability as driver_availability,
@@ -47,3 +48,6 @@ api_router.include_router(driver_availability.router)           # already has /d
 api_router.include_router(driver_onboarding.router, prefix=_driver_prefix)
 api_router.include_router(driver_rides.router, prefix=_driver_prefix)
 api_router.include_router(driver_documents.router, prefix=_driver_prefix)
+
+# Admin routes (internal — X-Admin-Key header)
+api_router.include_router(admin_drivers.router, prefix="/admin")

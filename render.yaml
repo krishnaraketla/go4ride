@@ -57,6 +57,8 @@ services:
         value: '["*"]'           # tighten to your frontend origin(s) in the dashboard
       - key: DEFAULT_CURRENCY
         value: INR
+      - key: ADMIN_API_KEY
+        sync: false              # set manually in Render dashboard for internal admin UI
 
   # Render's free Redis-compatible service is the "Key Value" instance.
   # Persistence is unavailable on the free plan, which is fine for this app:

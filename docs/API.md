@@ -825,6 +825,108 @@ curl -X POST http://localhost:8000/api/v1/rides \
 
 ---
 
+## Admin (internal)
+
+Base path: `/api/v1/admin`
+
+Protected by `X-Admin-Key` header matching `ADMIN_API_KEY` in server config. When `ADMIN_API_KEY` is unset, admin routes return `503 ADMIN_NOT_CONFIGURED`.
+
+Used for driver KYC review after `POST /driver/onboarding/submit`.
+
+### `GET /admin/driver-applications`
+
+List driver applications.
+
+**Auth:** `X-Admin-Key`
+
+**Query params:** `status` (default `under_review`), `page` (default 1), `limit` (default 20, max 100)
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "Driver applications retrieved",
+  "data": {
+    "applications": [
+      {
+        "driver_id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "Krishna",
+        "phone": "+919876543210",
+        "onboarding_status": "under_review",
+        "kyc_status": "submitted",
+        "vehicle_make": "Maruti",
+        "vehicle_model": "Swift",
+        "vehicle_plate": "KA01AB1234",
+        "documents_count": 2,
+        "submitted_at": "2026-06-09T10:00:00Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  }
+}
+```
+
+---
+
+### `GET /admin/driver-applications/{driver_id}`
+
+Application detail including presigned document view URLs (15 min TTL).
+
+**Auth:** `X-Admin-Key`
+
+**Errors:** `404 NOT_FOUND`
+
+---
+
+### `POST /admin/driver-applications/{driver_id}/approve`
+
+Approve KYC. Sets `onboarding_status=approved`, `kyc_status=approved`, and marks all documents approved.
+
+**Auth:** `X-Admin-Key`
+
+**Precondition:** `onboarding_status=under_review` or `kyc_status=submitted`
+
+**Errors:** `400 INVALID_STATUS`, `404 NOT_FOUND`
+
+---
+
+### `POST /admin/driver-applications/{driver_id}/reject`
+
+Reject KYC with a reason.
+
+**Auth:** `X-Admin-Key`
+
+**Request body**
+
+```json
+{
+  "reason": "License photo is unreadable"
+}
+```
+
+**Errors:** `400 INVALID_STATUS`, `404 NOT_FOUND`
+
+---
+
+**Example: list pending applications**
+
+```bash
+curl http://localhost:8000/api/v1/admin/driver-applications \
+  -H "X-Admin-Key: $ADMIN_API_KEY"
+```
+
+**Example: approve**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/driver-applications/{driver_id}/approve \
+  -H "X-Admin-Key: $ADMIN_API_KEY"
+```
+
+---
+
 ## Changelog
 
 

@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     referral_bonus: Decimal = Field(default=Decimal("5.00"))
     max_saved_addresses_per_user: int = 10
 
+    admin_api_key: str = ""
+    aws_region: str = "ap-south-1"
+    s3_bucket: str = "go4ride-kyc"
+
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, v: object) -> object:
