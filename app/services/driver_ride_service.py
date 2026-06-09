@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import get_settings
 from app.core.exceptions import bad_request, forbidden, not_found
 from app.models.driver import DriverProfile
 from app.models.enums import DriverStatus, RideStatus
@@ -14,8 +15,12 @@ from app.models.ride import Ride
 from app.models.user import User
 from app.schemas.driver import (
     DriverRideResponse,
+    DriverRideSearchItem,
+    DriverRideSearchMeta,
+    DriverRideSearchResponse,
     RiderSummary,
 )
+from app.services import geo_service
 from app.services.ride_service import TERMINAL_STATUSES, transition_ride
 
 # Statuses where the driver is actively managing a ride
@@ -26,19 +31,80 @@ _ACTIVE_STATUSES = {
 }
 
 
-async def get_pending_ride(db: AsyncSession, driver: User) -> DriverRideResponse | None:
-    """Return the first ride in searching_driver state (for the driver to accept/reject)."""
+async def search_nearby_rides(
+    db: AsyncSession,
+    driver: User,
+    lat: Decimal,
+    lng: Decimal,
+    radius_km: float,
+    limit: int,
+) -> DriverRideSearchResponse:
+    """Return open rides whose pickup is within radius_km of the driver."""
+    profile = await _get_driver_profile(db, driver.id)
+    if profile.driver_status == DriverStatus.offline:
+        raise bad_request("Driver must be online to search for rides", "DRIVER_OFFLINE")
+    if profile.driver_status == DriverStatus.on_ride:
+        settings = get_settings()
+        return DriverRideSearchResponse(
+            rides=[],
+            search=DriverRideSearchMeta(
+                lat=lat, lng=lng, radius_km=radius_km, total=0
+            ),
+        )
+
+    radius_m = int(radius_km * 1000)
     result = await db.execute(
         select(Ride)
         .where(Ride.status == RideStatus.searching_driver)
         .options(selectinload(Ride.ride_type))
         .order_by(Ride.requested_at.asc())
-        .limit(1)
     )
-    ride = result.scalar_one_or_none()
-    if ride is None:
+    rides = result.scalars().all()
+
+    matched: list[tuple[int, Ride]] = []
+    for ride in rides:
+        distance_m = geo_service.haversine_distance_m(lat, lng, ride.pickup_lat, ride.pickup_lng)
+        if distance_m <= radius_m:
+            matched.append((distance_m, ride))
+
+    matched.sort(key=lambda item: (item[0], item[1].requested_at))
+    matched = matched[:limit]
+
+    items: list[DriverRideSearchItem] = []
+    for distance_m, ride in matched:
+        base = await _to_driver_ride_response(db, ride)
+        pickup_eta = await geo_service.get_driving_eta_min(lat, lng, ride.pickup_lat, ride.pickup_lng)
+        items.append(
+            DriverRideSearchItem(
+                **base.model_dump(),
+                pickup_distance_m=distance_m,
+                pickup_eta_min=pickup_eta,
+            )
+        )
+
+    return DriverRideSearchResponse(
+        rides=items,
+        search=DriverRideSearchMeta(lat=lat, lng=lng, radius_km=radius_km, total=len(items)),
+    )
+
+
+async def get_pending_ride(db: AsyncSession, driver: User) -> DriverRideResponse | None:
+    """Deprecated: use search_nearby_rides. Returns nearest ride within default radius."""
+    profile = await _get_driver_profile(db, driver.id)
+    if profile.current_lat is None or profile.current_lng is None:
+        raise bad_request("Driver location required. Call PATCH /driver/status or /driver/location first.", "LOCATION_REQUIRED")
+    settings = get_settings()
+    search = await search_nearby_rides(
+        db,
+        driver,
+        profile.current_lat,
+        profile.current_lng,
+        settings.driver_search_default_radius_km,
+        1,
+    )
+    if not search.rides:
         return None
-    return await _to_driver_ride_response(db, ride)
+    return search.rides[0]
 
 
 async def accept_ride(db: AsyncSession, driver: User, ride_id: UUID) -> DriverRideResponse:

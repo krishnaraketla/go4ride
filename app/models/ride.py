@@ -56,6 +56,7 @@ class Ride(Base):
 
     distance_km: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     duration_min: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    route_polyline: Mapped[str | None] = mapped_column(Text, nullable=True)
     estimated_fare: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     final_fare: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     surge_multiplier: Mapped[Decimal] = mapped_column(Numeric(4, 2), default=Decimal("1.00"))

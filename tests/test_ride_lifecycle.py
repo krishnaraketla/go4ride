@@ -105,6 +105,7 @@ def test_full_mock_lifecycle(client: TestClient) -> None:
     created = api_json(create)
     ride_id = created["id"]
     assert created["status"] == "searching_driver"
+    assert "route_polyline" in created
 
     statuses: list[str] = []
     with client.websocket_connect(f"/api/v1/ws/rides/{ride_id}?token={token}") as ws:
@@ -113,9 +114,12 @@ def test_full_mock_lifecycle(client: TestClient) -> None:
         deadline = time.monotonic() + 15.0
         while time.monotonic() < deadline:
             payload = ws.receive_json()
-            if payload.get("status"):
+            if payload.get("type") == "status" and payload.get("status"):
+                statuses.append(payload["status"])
+            elif payload.get("status"):
                 statuses.append(payload["status"])
             if payload.get("status") == "completed":
+                assert payload.get("type") in (None, "status")
                 break
 
     assert "driver_assigned" in statuses

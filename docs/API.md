@@ -686,7 +686,7 @@ ws://localhost:8000/api/v1/ws/rides/{ride_id}?token=<access_token>
 }
 ```
 
-**Status events** — pushed when ride status changes (JSON text). The `status` field is one of:
+**Status events** — pushed when ride status changes (JSON text). Each event includes `"type": "status"`. The `status` field is one of:
 
 
 | `status`           | Typical message      | `driver` object                        |
@@ -706,10 +706,13 @@ Example (`driver_assigned`):
 
 ```json
 {
+  "type": "status",
   "ride_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
   "status": "driver_assigned",
   "message": "Driver assigned",
   "created_at": "2026-05-20T10:30:05.123456+00:00",
+  "route_polyline": "encoded_pickup_to_drop_polyline",
+  "leg_polyline": "encoded_driver_to_pickup_polyline",
   "driver": {
     "id": "550e8400-e29b-41d4-a716-446655440001",
     "name": "Dev Driver",
@@ -723,6 +726,28 @@ Example (`driver_assigned`):
   }
 }
 ```
+
+**Location update events** — pushed while a driver is on an active ride and sends GPS pings (`PATCH /driver/location`). Throttled to at most one event every 10 seconds per ride.
+
+```json
+{
+  "type": "location_update",
+  "ride_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+  "status": "driver_assigned",
+  "route_polyline": "encoded_pickup_to_drop_polyline",
+  "leg_polyline": "encoded_driver_to_pickup_polyline",
+  "driver": {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "name": "Dev Driver",
+    "lat": "12.9710",
+    "lng": "77.5940",
+    "eta_min": 4
+  },
+  "updated_at": "2026-05-20T10:31:00.123456+00:00"
+}
+```
+
+Driver `eta_min` uses Google Distance Matrix when `MAPS_PROVIDER=google` (falls back to haversine estimate in mock mode).
 
 **Close codes**
 

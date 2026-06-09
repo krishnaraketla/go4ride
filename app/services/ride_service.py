@@ -10,17 +10,14 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.exceptions import bad_request, not_found
-from app.core.redis import get_idempotency, publish_ride_event, store_idempotency
-from app.models.driver import DriverProfile
+from app.core.redis import get_cached_leg_polyline, get_idempotency, publish_ride_event, store_idempotency
 from app.models.enums import RideStatus
 from app.models.ride import Ride, RideStatusEvent, RideType
 from app.models.user import User
-from app.core.config import get_settings as get_app_settings
 from app.schemas.invoice import InvoiceResponse
 from app.schemas.ride import (
     Coordinates,
     CreateRideRequest,
-    DriverSummary,
     RepeatRideResponse,
     RideQuoteOption,
     RideQuoteResponse,
@@ -28,7 +25,7 @@ from app.schemas.ride import (
     RideStatusResponse,
     RouteSummary,
 )
-from app.services import fare_service, geo_service, supply_service
+from app.services import fare_service, geo_service, ride_live_service, supply_service
 
 TERMINAL_STATUSES = {RideStatus.completed, RideStatus.cancelled}
 
@@ -47,13 +44,6 @@ CANCELLABLE = {
     RideStatus.searching_driver,
     RideStatus.driver_assigned,
     RideStatus.driver_arrived,
-}
-
-_DRIVER_WS_STATUSES = {
-    RideStatus.driver_assigned,
-    RideStatus.driver_arrived,
-    RideStatus.in_progress,
-    RideStatus.completed,
 }
 
 
@@ -185,8 +175,11 @@ async def create_ride(
             return RideResponse.model_validate_json(cached)
 
     ride_type = await fare_service.get_ride_type_by_slug(db, body.ride_type_slug)
-    distance_km, duration_min, estimated, surge, _ = await estimate_ride(
-        db, body.pickup.lat, body.pickup.lng, body.drop.lat, body.drop.lng, body.ride_type_slug
+    route = await geo_service.get_route(
+        body.pickup.lat, body.pickup.lng, body.drop.lat, body.drop.lng
+    )
+    estimated, surge, _ = await _fare_for_route(
+        db, body.ride_type_slug, route.distance_km, route.duration_min
     )
 
     ride = Ride(
@@ -199,8 +192,9 @@ async def create_ride(
         drop_lat=body.drop.lat,
         drop_lng=body.drop.lng,
         drop_address=body.drop_address,
-        distance_km=distance_km,
-        duration_min=duration_min,
+        distance_km=route.distance_km,
+        duration_min=route.duration_min,
+        route_polyline=route.polyline,
         estimated_fare=estimated,
         surge_multiplier=surge,
     )
@@ -243,12 +237,15 @@ async def get_ride(db: AsyncSession, rider: User, ride_id: UUID) -> RideResponse
 async def get_ride_status(db: AsyncSession, rider: User, ride_id: UUID) -> RideStatusResponse:
     ride = await _get_ride_for_rider(db, rider.id, ride_id)
     message = await _latest_status_message(db, ride.id)
-    driver = await _driver_summary_for_ride(db, ride)
+    driver = await ride_live_service.driver_summary_for_ride(db, ride)
+    leg_polyline = await get_cached_leg_polyline(str(ride.id)) if ride.driver_id else None
     return RideStatusResponse(
         id=ride.id,
         status=ride.status.value,
         message=message,
         driver=driver,
+        route_polyline=ride.route_polyline,
+        leg_polyline=leg_polyline,
     )
 
 
@@ -274,10 +271,10 @@ def _invoice_available(ride: Ride) -> bool:
 
 async def get_ride_invoice(db: AsyncSession, rider: User, ride_id: UUID) -> InvoiceResponse:
     ride = await _get_ride_for_rider(db, rider.id, ride_id)
-    settings = get_app_settings()
+    settings = get_settings()
     if ride.status != RideStatus.completed or ride.final_fare is None:
         return InvoiceResponse(available=False)
-    driver = await _driver_summary_for_ride(db, ride)
+    driver = await ride_live_service.driver_summary_for_ride(db, ride)
     return InvoiceResponse(
         available=True,
         ride_id=ride.id,
@@ -380,53 +377,15 @@ async def _latest_status_message(db: AsyncSession, ride_id: UUID) -> str | None:
     return result.scalar_one_or_none()
 
 
-async def _driver_summary_for_ride(db: AsyncSession, ride: Ride) -> DriverSummary | None:
-    if ride.driver_id is None:
-        return None
-    user_result = await db.execute(select(User).where(User.id == ride.driver_id))
-    driver_user = user_result.scalar_one_or_none()
-    if driver_user is None:
-        return None
-    profile_result = await db.execute(
-        select(DriverProfile).where(DriverProfile.user_id == ride.driver_id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    if profile is None:
-        return None
-    settings = get_settings()
-    return DriverSummary(
-        id=driver_user.id,
-        name=driver_user.name or "Driver",
-        phone=driver_user.phone,
-        vehicle_model=profile.vehicle_model,
-        vehicle_plate=profile.vehicle_plate,
-        vehicle_color=profile.vehicle_color,
-        lat=profile.current_lat,
-        lng=profile.current_lng,
-        eta_min=(
-            settings.mock_driver_eta_min
-            if ride.status in {RideStatus.driver_assigned, RideStatus.driver_arrived}
-            else None
-        ),
-    )
-
-
 async def _record_status(
     db: AsyncSession, ride: Ride, status: RideStatus, message: str | None = None
 ) -> RideStatusEvent:
     event = RideStatusEvent(ride_id=ride.id, status=status, message=message)
     db.add(event)
     await db.flush()
-    payload: dict = {
-        "ride_id": str(ride.id),
-        "status": status.value,
-        "message": message,
-        "created_at": event.created_at.isoformat(),
-    }
-    if status in _DRIVER_WS_STATUSES and ride.driver_id is not None:
-        driver = await _driver_summary_for_ride(db, ride)
-        if driver is not None:
-            payload["driver"] = driver.model_dump(mode="json")
+    payload = await ride_live_service.build_status_payload(
+        db, ride, status, message, event.created_at
+    )
     await publish_ride_event(str(ride.id), payload)
     return event
 
@@ -458,7 +417,7 @@ async def _transition_status(
 
 async def _to_ride_response(db: AsyncSession, ride: Ride) -> RideResponse:
     slug = ride.ride_type.slug if ride.ride_type else None
-    driver = await _driver_summary_for_ride(db, ride)
+    driver = await ride_live_service.driver_summary_for_ride(db, ride)
     return RideResponse(
         id=ride.id,
         status=ride.status.value,
@@ -481,5 +440,6 @@ async def _to_ride_response(db: AsyncSession, ride: Ride) -> RideResponse:
         completed_at=ride.completed_at,
         cancelled_at=ride.cancelled_at,
         driver=driver,
+        route_polyline=ride.route_polyline,
         invoice_available=_invoice_available(ride),
     )

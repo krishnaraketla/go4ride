@@ -44,9 +44,15 @@ services:
       - key: OTP_DEBUG
         value: "true"            # set to "false" once a real OTP provider is wired
       - key: MAPS_PROVIDER
-        value: mock              # switch to google/mapbox + MAPS_API_KEY when ready
+        value: google            # set MAPS_API_KEY in dashboard; use mock locally without key
+      - key: MAPS_API_KEY
+        sync: false              # set manually in Render dashboard (Geocoding, Directions, Distance Matrix)
       - key: MOCK_DRIVER_ENABLED
-        value: "true"            # keep true for early demos; set false for real rides
+        value: "false"           # real driver flow; set true for auto-advance demos
+      - key: DRIVER_ETA_CACHE_TTL_SEC
+        value: "30"
+      - key: DRIVER_LOCATION_PUBLISH_INTERVAL_SEC
+        value: "10"
       - key: CORS_ORIGINS
         value: '["*"]'           # tighten to your frontend origin(s) in the dashboard
       - key: DEFAULT_CURRENCY

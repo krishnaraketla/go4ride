@@ -106,11 +106,14 @@ With `MOCK_DRIVER_ENABLED=true` (default when `APP_ENV=development`), booked rid
 
 `requested` → `searching_driver` → `driver_assigned` → `driver_arrived` → `in_progress` → `completed`
 
-Set `MOCK_DRIVER_ENABLED=false` in production; rides then stay at `searching_driver` until Phase 2 real matching.
+Set `MOCK_DRIVER_ENABLED=false` for real driver flow (default in production blueprint). Drivers discover rides via `GET /api/v1/driver/rides/search?lat=&lng=&radius_km=5` while online.
 
 | Env var | Default (dev) | Description |
 |---------|---------------|-------------|
-| `MOCK_DRIVER_ENABLED` | `true` | Auto-assign seeded mock driver |
+| `MOCK_DRIVER_ENABLED` | `true` (dev) / `false` (prod blueprint) | Auto-assign seeded mock driver when `true` |
+| `MAPS_PROVIDER` | `mock` | Set `google` + `MAPS_API_KEY` for real routes and live ETA |
+| `DRIVER_ETA_CACHE_TTL_SEC` | `30` | Cache Google ETA per ride |
+| `DRIVER_LOCATION_PUBLISH_INTERVAL_SEC` | `10` | Min seconds between WS location_update events |
 | `MOCK_DRIVER_AUTO_ADVANCE` | `true` | Step through arrived → in_progress → completed |
 | `MOCK_DRIVER_ASSIGN_DELAY_SEC` | `2` | Delay before assign |
 | `MOCK_DRIVER_STEP_DELAY_SEC` | `5` | Delay between auto-advance steps |

@@ -47,3 +47,32 @@ async def store_idempotency(key: str, response: str, ttl_seconds: int = 86400) -
 async def get_idempotency(key: str) -> str | None:
     client = await get_redis()
     return await client.get(f"idempotency:{key}")
+
+
+async def get_cached_eta(ride_id: str) -> int | None:
+    client = await get_redis()
+    value = await client.get(f"ride:{ride_id}:eta")
+    return int(value) if value is not None else None
+
+
+async def set_cached_eta(ride_id: str, eta_min: int, ttl_sec: int) -> None:
+    client = await get_redis()
+    await client.set(f"ride:{ride_id}:eta", str(eta_min), ex=ttl_sec)
+
+
+async def get_cached_leg_polyline(ride_id: str) -> str | None:
+    client = await get_redis()
+    return await client.get(f"ride:{ride_id}:leg_polyline")
+
+
+async def set_cached_leg_polyline(ride_id: str, polyline: str, ttl_sec: int = 3600) -> None:
+    client = await get_redis()
+    await client.set(f"ride:{ride_id}:leg_polyline", polyline, ex=ttl_sec)
+
+
+async def should_publish_location_update(ride_id: str, interval_sec: int) -> bool:
+    """Returns True if enough time has passed since the last location WS publish."""
+    client = await get_redis()
+    key = f"ride:{ride_id}:loc_throttle"
+    acquired = await client.set(key, "1", nx=True, ex=interval_sec)
+    return acquired is not None

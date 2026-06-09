@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.db.session import async_session_factory
 from app.models.driver import DriverProfile
-from app.models.enums import UserRole
+from app.models.enums import KycStatus, OnboardingStatus, UserRole
 from app.models.ride import FareRule, RideType
 from app.models.user import User
 from app.models.wallet import PaymentMethod, PromoCode
@@ -19,6 +19,8 @@ MOCK_DRIVER_VEHICLE = {
     "vehicle_color": "white",
     "current_lat": Decimal("12.9700"),
     "current_lng": Decimal("77.5900"),
+    "kyc_status": KycStatus.approved,
+    "onboarding_status": OnboardingStatus.approved,
 }
 
 
@@ -123,11 +125,14 @@ async def seed() -> None:
             profile_result = await db.execute(
                 select(DriverProfile).where(DriverProfile.user_id == driver_user.id)
             )
-            if profile_result.scalar_one_or_none() is None:
+            profile = profile_result.scalar_one_or_none()
+            if profile is None:
                 db.add(DriverProfile(user_id=driver_user.id, **MOCK_DRIVER_VEHICLE))
                 print(f"Seeded driver profile for existing user ({MOCK_DRIVER_PHONE})")
             else:
-                print(f"Mock driver already seeded ({MOCK_DRIVER_PHONE})")
+                profile.kyc_status = KycStatus.approved
+                profile.onboarding_status = OnboardingStatus.approved
+                print(f"Mock driver already seeded ({MOCK_DRIVER_PHONE}); KYC ensured approved")
 
         promo_result = await db.execute(select(PromoCode).where(PromoCode.code == "WELCOME5"))
         if promo_result.scalar_one_or_none() is None:

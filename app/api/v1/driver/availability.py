@@ -10,12 +10,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_driver
+from app.core.config import get_settings
 from app.core.exceptions import bad_request, not_found
 from app.db.session import get_db
 from app.models.driver import DriverProfile
 from app.models.enums import DriverStatus, KycStatus
 from app.models.user import User
 from app.schemas.driver import UpdateLocationRequest, UpdateLocationResponse
+from app.services import ride_live_service
 
 router = APIRouter(tags=["Driver Availability"])
 
@@ -105,6 +107,7 @@ async def update_location(
     profile.current_lat = body.lat
     profile.current_lng = body.lng
     await db.commit()
+    await ride_live_service.publish_location_update(db, driver.id)
     return UpdateLocationResponse(lat=body.lat, lng=body.lng, updated=True)
 
 

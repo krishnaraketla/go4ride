@@ -111,6 +111,7 @@ class RideResponse(BaseModel):
     completed_at: datetime | None = None
     cancelled_at: datetime | None = None
     driver: DriverSummary | None = None
+    route_polyline: str | None = None
     invoice_available: bool = False
 
 
@@ -127,6 +128,8 @@ class RideStatusResponse(BaseModel):
     status: str
     message: str | None = None
     driver: DriverSummary | None = None
+    route_polyline: str | None = None
+    leg_polyline: str | None = None
 
 
 class RideHistoryResponse(BaseModel):

@@ -95,9 +95,10 @@ update these via the Render dashboard's **Environment** tab for
 | `OTP_PROVIDER`         | `twilio` or `msg91`                    | Real SMS delivery                                                  |
 | `OTP_DEBUG`            | `false`                                | Stop returning OTP in API responses                                |
 | `TWILIO_*` / `MSG91_*` | provider credentials                   | Required for the chosen provider                                   |
-| `MAPS_PROVIDER`        | `google` or `mapbox`                   | Real distance/duration calculations                                |
-| `MAPS_API_KEY`         | provider API key                       | Required                                                           |
-| `MOCK_DRIVER_ENABLED`  | `false`                                | Disable auto-advance once a real driver app is in place            |
+| `MAPS_PROVIDER`        | `google` (default in blueprint)        | Real distance/duration and live ETA                                |
+| `MAPS_API_KEY`         | Google server API key                  | Enable **Geocoding**, **Directions**, and **Distance Matrix** APIs |
+| `MOCK_DRIVER_ENABLED`  | `false` (default in blueprint)         | Real driver accept/complete flow; set `true` for auto-advance demos |
+| `DRIVER_ETA_CACHE_TTL_SEC` | `30`                             | Cache Google ETA per ride to limit API calls                       |
 | `CORS_ORIGINS`         | JSON array of your frontend origins    | `["https://app.example.com"]` — replace the permissive `["*"]`     |
 
 After changing env vars, Render auto-redeploys the service.

@@ -268,6 +268,23 @@ class DriverRideHistoryResponse(BaseModel):
     limit: int
 
 
+class DriverRideSearchMeta(BaseModel):
+    lat: Decimal
+    lng: Decimal
+    radius_km: float
+    total: int
+
+
+class DriverRideSearchItem(DriverRideResponse):
+    pickup_distance_m: int
+    pickup_eta_min: int | None = None
+
+
+class DriverRideSearchResponse(BaseModel):
+    rides: list[DriverRideSearchItem]
+    search: DriverRideSearchMeta
+
+
 # ---------------------------------------------------------------------------
 # Onboarding — Vehicle
 # ---------------------------------------------------------------------------

@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     mock_driver_step_delay_sec: int = 5
     mock_driver_eta_min: int = 5
 
+    driver_search_default_radius_km: float = 5.0
+    driver_search_max_radius_km: float = 50.0
+    driver_eta_cache_ttl_sec: int = 30
+    driver_location_publish_interval_sec: int = 10
+
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     public_base_url: str | None = None
     render_external_url: str | None = None

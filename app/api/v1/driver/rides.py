@@ -1,9 +1,11 @@
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.deps import get_current_driver
 from app.db.session import get_db
 from app.models.user import User
@@ -12,6 +14,7 @@ from app.schemas.driver import (
     CompleteRideResponse,
     DriverRideHistoryResponse,
     DriverRideResponse,
+    DriverRideSearchResponse,
     RejectRideResponse,
     StartRideRequest,
 )
@@ -20,12 +23,31 @@ from app.services import driver_ride_service
 router = APIRouter(prefix="/rides", tags=["Driver Rides"])
 
 
-@router.get("/pending", response_model=DriverRideResponse | None)
+@router.get("/search", response_model=DriverRideSearchResponse)
+async def search_rides(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    driver: Annotated[User, Depends(get_current_driver)],
+    lat: Decimal = Query(..., ge=-90, le=90),
+    lng: Decimal = Query(..., ge=-180, le=180),
+    radius_km: float | None = Query(default=None, ge=0.5, le=50),
+    limit: int = Query(default=10, ge=1, le=20),
+):
+    """Search for open rides near the driver's current location."""
+    settings = get_settings()
+    effective_radius = radius_km if radius_km is not None else settings.driver_search_default_radius_km
+    if effective_radius > settings.driver_search_max_radius_km:
+        effective_radius = settings.driver_search_max_radius_km
+    return await driver_ride_service.search_nearby_rides(
+        db, driver, lat, lng, effective_radius, limit
+    )
+
+
+@router.get("/pending", response_model=DriverRideResponse | None, deprecated=True)
 async def get_pending_ride(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
-    """Get the next ride waiting to be accepted."""
+    """Deprecated: use GET /rides/search. Returns the nearest open ride within default radius."""
     return await driver_ride_service.get_pending_ride(db, driver)
 
 
