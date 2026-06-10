@@ -37,7 +37,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         message, code, errors = _parse_http_detail(exc.detail)
         logger.warning(
             "app_error",
-            extra={"code": code, "status_code": exc.status_code, "message": message},
+            extra={"code": code, "status_code": exc.status_code, "error_message": message},
         )
         body = fail(message, code, errors=errors)
         return JSONResponse(status_code=exc.status_code, content=body.model_dump())
@@ -49,7 +49,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         message, code, errors = _parse_http_detail(exc.detail)
         logger.warning(
             "http_exception",
-            extra={"code": code, "status_code": exc.status_code, "message": message},
+            extra={"code": code, "status_code": exc.status_code, "error_message": message},
         )
         body = fail(message, code, errors=errors)
         return JSONResponse(status_code=exc.status_code, content=body.model_dump())
