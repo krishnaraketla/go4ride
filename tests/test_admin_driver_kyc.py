@@ -106,7 +106,7 @@ def _upload_all_documents(client: TestClient, headers: dict[str, str]) -> None:
 
 
 def _submit_vehicle(client: TestClient, headers: dict[str, str]) -> dict:
-    response = client.post(
+    response = client.patch(
         f"{API}/driver/onboarding/vehicle",
         headers=headers,
         data={
@@ -125,7 +125,7 @@ def _submit_vehicle(client: TestClient, headers: dict[str, str]) -> dict:
             "photo_right": _file_field("right.jpg"),
         },
     )
-    assert response.status_code == 201, response.text
+    assert response.status_code == 200, response.text
     return api_json(response)
 
 
@@ -142,6 +142,31 @@ def _submit_driver_application(client: TestClient) -> tuple[str, str, str]:
     assert vehicle_data["submitted_at"]
 
     return token, refresh_token, driver_id
+
+
+def test_vehicle_patch_partial_then_submit(client: TestClient) -> None:
+    token, _, _ = _register_driver(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    _upload_all_documents(client, headers)
+
+    partial = client.patch(
+        f"{API}/driver/onboarding/vehicle",
+        headers=headers,
+        data={"make": "Maruti", "model": "Swift"},
+    )
+    assert partial.status_code == 200, partial.text
+    partial_data = api_json(partial)
+    assert partial_data["onboarding"]["onboarding_status"] == "step2"
+    assert partial_data["submitted_at"] is None
+
+    status = client.get(f"{API}/driver/onboarding/status", headers=headers)
+    assert status.status_code == 200, status.text
+    status_data = api_json(status)
+    assert status_data["onboarding"]["onboarding_status"] == "step2"
+    assert status_data["onboarding"]["profile_status"] is False
+    assert status_data["onboarding"]["kyc_rejection_reason"] is None
+    assert status_data["onboarding"]["face_verification_completed"] is False
+    assert status_data["onboarding"]["estimated_review_time"] is None
 
 
 def test_admin_driver_kyc_review_flow(client: TestClient) -> None:

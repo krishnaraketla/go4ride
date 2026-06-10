@@ -291,9 +291,13 @@ class DocumentsSubmitResponse(BaseModel):
     documents: list[DocumentSummary]
 
 
+class OnboardingStatusResponse(BaseModel):
+    onboarding: OnboardingState
+
+
 class VehicleSubmitResponse(BaseModel):
     onboarding: OnboardingState
-    submitted_at: datetime
+    submitted_at: datetime | None = None
 
 
 class FaceVerificationResponse(BaseModel):

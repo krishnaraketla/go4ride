@@ -18,6 +18,7 @@ from app.schemas.driver import (
     DocumentSummary,
     DocumentsSubmitResponse,
     FaceVerificationResponse,
+    OnboardingStatusResponse,
     VehicleSubmitResponse,
 )
 from app.schemas.response import ApiResponse, ok
@@ -27,6 +28,7 @@ from app.services.driver_onboarding_service import (
     documents_complete,
     get_uploaded_document_types,
     maybe_advance_to_step2,
+    step2_complete,
 )
 from app.services.driver_upload_service import upload_driver_file
 
@@ -113,23 +115,33 @@ async def submit_documents(
     )
 
 
-@router.post("/vehicle", response_model=ApiResponse[VehicleSubmitResponse], status_code=201)
-async def submit_vehicle(
+@router.get("/status", response_model=ApiResponse[OnboardingStatusResponse])
+async def get_onboarding_status(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
-    vehicle_type: Annotated[str, Form()],
-    make: Annotated[str, Form()],
-    model: Annotated[str, Form()],
-    year: Annotated[int, Form()],
-    plate_number: Annotated[str, Form()],
-    color: Annotated[str, Form()],
-    city_slug: Annotated[str, Form()],
-    photo_front: Annotated[UploadFile, File()],
-    photo_back: Annotated[UploadFile, File()],
-    photo_left: Annotated[UploadFile, File()],
-    photo_right: Annotated[UploadFile, File()],
 ):
-    """Submit vehicle details, city, and photos. Auto-submits application for review."""
+    """Return current onboarding state for routing."""
+    profile = await _get_profile_or_404(db, driver.id)
+    return ok(OnboardingStatusResponse(onboarding=build_onboarding_state(profile)))
+
+
+@router.patch("/vehicle", response_model=ApiResponse[VehicleSubmitResponse])
+async def update_vehicle(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    driver: Annotated[User, Depends(get_current_driver)],
+    vehicle_type: Annotated[str | None, Form()] = None,
+    make: Annotated[str | None, Form()] = None,
+    model: Annotated[str | None, Form()] = None,
+    year: Annotated[int | None, Form()] = None,
+    plate_number: Annotated[str | None, Form()] = None,
+    color: Annotated[str | None, Form()] = None,
+    city_slug: Annotated[str | None, Form()] = None,
+    photo_front: Annotated[UploadFile | None, File()] = None,
+    photo_back: Annotated[UploadFile | None, File()] = None,
+    photo_left: Annotated[UploadFile | None, File()] = None,
+    photo_right: Annotated[UploadFile | None, File()] = None,
+):
+    """Save vehicle details, city, and photos incrementally. Auto-submits when complete."""
     profile = await _get_profile_or_404(db, driver.id)
 
     if profile.onboarding_status not in (OnboardingStatus.step2, OnboardingStatus.kyc_rejected):
@@ -145,51 +157,78 @@ async def submit_vehicle(
             "DOCUMENTS_INCOMPLETE",
         )
 
-    try:
-        parsed_vehicle_type = VehicleType(vehicle_type)
-    except ValueError:
-        raise bad_request(
-            "vehicle_type must be auto, taxi, or cab",
-            "INVALID_VEHICLE_TYPE",
-        ) from None
+    if not any(
+        [
+            vehicle_type is not None,
+            make is not None,
+            model is not None,
+            year is not None,
+            plate_number is not None,
+            color is not None,
+            city_slug is not None,
+            _is_upload_provided(photo_front),
+            _is_upload_provided(photo_back),
+            _is_upload_provided(photo_left),
+            _is_upload_provided(photo_right),
+        ]
+    ):
+        raise bad_request("At least one field must be provided", "NO_FIELDS")
 
-    if year < 2000 or year > 2030:
-        raise bad_request("year must be between 2000 and 2030", "INVALID_YEAR")
+    if vehicle_type is not None:
+        try:
+            profile.vehicle_type = VehicleType(vehicle_type)
+        except ValueError:
+            raise bad_request(
+                "vehicle_type must be auto, taxi, or cab",
+                "INVALID_VEHICLE_TYPE",
+            ) from None
 
-    city_result = await db.execute(
-        select(City).where(City.slug == city_slug, City.is_active.is_(True))
-    )
-    city = city_result.scalar_one_or_none()
-    if city is None:
-        raise not_found("City not found", "CITY_NOT_FOUND")
+    if make is not None:
+        profile.vehicle_make = make
+    if model is not None:
+        profile.vehicle_model = model
+    if year is not None:
+        if year < 2000 or year > 2030:
+            raise bad_request("year must be between 2000 and 2030", "INVALID_YEAR")
+        profile.vehicle_year = year
+    if plate_number is not None:
+        profile.vehicle_plate = plate_number
+    if color is not None:
+        profile.vehicle_color = color
 
-    photo_keys = {
-        "front": await upload_driver_file(driver.id, "vehicle-photos/front", photo_front, "photo_front"),
-        "back": await upload_driver_file(driver.id, "vehicle-photos/back", photo_back, "photo_back"),
-        "left": await upload_driver_file(driver.id, "vehicle-photos/left", photo_left, "photo_left"),
-        "right": await upload_driver_file(driver.id, "vehicle-photos/right", photo_right, "photo_right"),
+    if city_slug is not None:
+        city_result = await db.execute(
+            select(City).where(City.slug == city_slug, City.is_active.is_(True))
+        )
+        city = city_result.scalar_one_or_none()
+        if city is None:
+            raise not_found("City not found", "CITY_NOT_FOUND")
+        profile.city_id = city.id
+
+    photo_uploads = {
+        "front": (photo_front, "vehicle-photos/front", "photo_front", "vehicle_photo_front_key"),
+        "back": (photo_back, "vehicle-photos/back", "photo_back", "vehicle_photo_back_key"),
+        "left": (photo_left, "vehicle-photos/left", "photo_left", "vehicle_photo_left_key"),
+        "right": (photo_right, "vehicle-photos/right", "photo_right", "vehicle_photo_right_key"),
     }
+    for _side, (upload, folder, field_name, attr) in photo_uploads.items():
+        if _is_upload_provided(upload):
+            file_key = await upload_driver_file(driver.id, folder, upload, field_name)
+            setattr(profile, attr, file_key)
 
-    profile.vehicle_type = parsed_vehicle_type
-    profile.vehicle_make = make
-    profile.vehicle_model = model
-    profile.vehicle_year = year
-    profile.vehicle_plate = plate_number
-    profile.vehicle_color = color
-    profile.city_id = city.id
-    profile.vehicle_photo_front_key = photo_keys["front"]
-    profile.vehicle_photo_back_key = photo_keys["back"]
-    profile.vehicle_photo_left_key = photo_keys["left"]
-    profile.vehicle_photo_right_key = photo_keys["right"]
+    submitted_at: datetime | None = None
+    if step2_complete(profile, uploaded_types):
+        if profile.onboarding_status == OnboardingStatus.kyc_rejected:
+            profile.kyc_rejection_reason = None
+            profile.kyc_status = KycStatus.pending
 
-    if profile.onboarding_status == OnboardingStatus.kyc_rejected:
-        profile.kyc_rejection_reason = None
-        profile.kyc_status = KycStatus.pending
-
-    submitted_at = datetime.now(timezone.utc)
-    profile.onboarding_status = OnboardingStatus.application_submitted
-    profile.kyc_status = KycStatus.submitted
-    profile.submitted_at = submitted_at
+        submitted_at = datetime.now(timezone.utc)
+        profile.onboarding_status = OnboardingStatus.application_submitted
+        profile.kyc_status = KycStatus.submitted
+        profile.submitted_at = submitted_at
+        message = "Application submitted for review"
+    else:
+        message = "Vehicle details saved"
 
     await db.commit()
 
@@ -198,7 +237,7 @@ async def submit_vehicle(
             onboarding=build_onboarding_state(profile),
             submitted_at=submitted_at,
         ),
-        message="Application submitted for review",
+        message=message,
     )
 
 
@@ -228,6 +267,10 @@ async def submit_face_verification(
         FaceVerificationResponse(onboarding=build_onboarding_state(profile)),
         message="Face verification completed",
     )
+
+
+def _is_upload_provided(file: UploadFile | None) -> bool:
+    return file is not None and bool(file.filename)
 
 
 async def _get_profile_or_404(db: AsyncSession, driver_id) -> DriverProfile:
