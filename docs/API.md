@@ -912,7 +912,7 @@ Same as rider refresh, plus `onboarding` in `data` so the app can resume routing
 
 Base path: `/api/v1/driver/onboarding`
 
-**Flow:** `POST /documents` (all 4 files) → `step2` → `PATCH /vehicle` (incremental saves; auto-submits when complete) → `application_submitted` → optional `POST /face-verification` → admin approve → `kyc_approved`.
+**Flow:** `POST /documents` (all 4 files) → `step2` → `PATCH /vehicle` (incremental saves; auto-submits for review) → `application_submitted` → optional `POST /face-verification` → admin approve → `kyc_approved`.
 
 All submit endpoints use `multipart/form-data`. Each response includes an updated `onboarding` object for navigation.
 
@@ -950,7 +950,7 @@ Return current onboarding state for app routing. **Auth:** Bearer driver token.
 
 ### `PATCH /driver/onboarding/vehicle`
 
-Save vehicle details, operating city, and photos incrementally. Auto-submits the application for admin review once all required fields are present. **Auth:** Bearer driver token.
+Save vehicle details, operating city, and photos incrementally. Auto-submits the application for admin review on every request (partial data is allowed). **Auth:** Bearer driver token.
 
 **Form fields (all optional; send only what you are updating):** `vehicle_type` (`auto` | `taxi` | `cab`), `make`, `model`, `year`, `plate_number`, `color`, `city_slug` (must match an active seeded city, e.g. `bangalore`).
 
@@ -958,7 +958,7 @@ Save vehicle details, operating city, and photos incrementally. Auto-submits the
 
 **Precondition:** documents complete (`step2` or `kyc_rejected` with all 4 docs). At least one field must be provided per request.
 
-**Response `200`:** `onboarding`, `submitted_at` (set only when the application auto-submits; otherwise `null`).
+**Response `200`:** `onboarding` (status becomes `application_submitted`, includes `estimated_review_time`: `"15 minutes"`), `submitted_at`.
 
 ### `POST /driver/onboarding/face-verification`
 

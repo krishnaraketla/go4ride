@@ -144,7 +144,7 @@ def _submit_driver_application(client: TestClient) -> tuple[str, str, str]:
     return token, refresh_token, driver_id
 
 
-def test_vehicle_patch_partial_then_submit(client: TestClient) -> None:
+def test_vehicle_patch_partial_auto_submits(client: TestClient) -> None:
     token, _, _ = _register_driver(client)
     headers = {"Authorization": f"Bearer {token}"}
     _upload_all_documents(client, headers)
@@ -156,17 +156,15 @@ def test_vehicle_patch_partial_then_submit(client: TestClient) -> None:
     )
     assert partial.status_code == 200, partial.text
     partial_data = api_json(partial)
-    assert partial_data["onboarding"]["onboarding_status"] == "step2"
-    assert partial_data["submitted_at"] is None
+    assert partial_data["onboarding"]["onboarding_status"] == "application_submitted"
+    assert partial_data["onboarding"]["estimated_review_time"] == "15 minutes"
+    assert partial_data["submitted_at"]
 
     status = client.get(f"{API}/driver/onboarding/status", headers=headers)
     assert status.status_code == 200, status.text
     status_data = api_json(status)
-    assert status_data["onboarding"]["onboarding_status"] == "step2"
-    assert status_data["onboarding"]["profile_status"] is False
-    assert status_data["onboarding"]["kyc_rejection_reason"] is None
-    assert status_data["onboarding"]["face_verification_completed"] is False
-    assert status_data["onboarding"]["estimated_review_time"] is None
+    assert status_data["onboarding"]["onboarding_status"] == "application_submitted"
+    assert status_data["onboarding"]["estimated_review_time"] == "15 minutes"
 
 
 def test_admin_driver_kyc_review_flow(client: TestClient) -> None:

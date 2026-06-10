@@ -28,7 +28,6 @@ from app.services.driver_onboarding_service import (
     documents_complete,
     get_uploaded_document_types,
     maybe_advance_to_step2,
-    step2_complete,
 )
 from app.services.driver_upload_service import upload_driver_file
 
@@ -141,7 +140,7 @@ async def update_vehicle(
     photo_left: Annotated[UploadFile | None, File()] = None,
     photo_right: Annotated[UploadFile | None, File()] = None,
 ):
-    """Save vehicle details, city, and photos incrementally. Auto-submits when complete."""
+    """Save vehicle details, city, and photos incrementally. Auto-submits for review."""
     profile = await _get_profile_or_404(db, driver.id)
 
     if profile.onboarding_status not in (OnboardingStatus.step2, OnboardingStatus.kyc_rejected):
@@ -216,19 +215,14 @@ async def update_vehicle(
             file_key = await upload_driver_file(driver.id, folder, upload, field_name)
             setattr(profile, attr, file_key)
 
-    submitted_at: datetime | None = None
-    if step2_complete(profile, uploaded_types):
-        if profile.onboarding_status == OnboardingStatus.kyc_rejected:
-            profile.kyc_rejection_reason = None
-            profile.kyc_status = KycStatus.pending
+    if profile.onboarding_status == OnboardingStatus.kyc_rejected:
+        profile.kyc_rejection_reason = None
+        profile.kyc_status = KycStatus.pending
 
-        submitted_at = datetime.now(timezone.utc)
-        profile.onboarding_status = OnboardingStatus.application_submitted
-        profile.kyc_status = KycStatus.submitted
-        profile.submitted_at = submitted_at
-        message = "Application submitted for review"
-    else:
-        message = "Vehicle details saved"
+    submitted_at = datetime.now(timezone.utc)
+    profile.onboarding_status = OnboardingStatus.application_submitted
+    profile.kyc_status = KycStatus.submitted
+    profile.submitted_at = submitted_at
 
     await db.commit()
 
@@ -237,7 +231,7 @@ async def update_vehicle(
             onboarding=build_onboarding_state(profile),
             submitted_at=submitted_at,
         ),
-        message=message,
+        message="Application submitted for review",
     )
 
 
