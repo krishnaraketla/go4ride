@@ -1,4 +1,5 @@
 from app.models.address import SavedAddress, UserSettings
+from app.models.city import City
 from app.models.driver import DriverProfile
 from app.models.ride import FareRule, Ride, RideStatusEvent, RideType
 from app.models.user import OTPVerification, RefreshToken, User, UserDevice
@@ -17,6 +18,7 @@ __all__ = [
     "OTPVerification",
     "RefreshToken",
     "UserDevice",
+    "City",
     "DriverProfile",
     "RideType",
     "FareRule",

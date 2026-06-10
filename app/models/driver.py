@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,13 +16,12 @@ class DriverProfile(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True
     )
-    vehicle_model: Mapped[str] = mapped_column(String(64))
-    vehicle_plate: Mapped[str] = mapped_column(String(32))
-    vehicle_color: Mapped[str] = mapped_column(String(32))
+    vehicle_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    vehicle_plate: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    vehicle_color: Mapped[str | None] = mapped_column(String(32), nullable=True)
     current_lat: Mapped[Decimal | None] = mapped_column(Numeric(10, 7), nullable=True)
     current_lng: Mapped[Decimal | None] = mapped_column(Numeric(10, 7), nullable=True)
 
-    # Phase-2 driver fields
     ride_type_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("ride_types.id"), nullable=True
     )
@@ -33,20 +32,33 @@ class DriverProfile(Base):
         Enum(KycStatus), default=KycStatus.pending
     )
     onboarding_status: Mapped[OnboardingStatus] = mapped_column(
-        Enum(OnboardingStatus), default=OnboardingStatus.pending
+        Enum(OnboardingStatus), default=OnboardingStatus.step1
     )
     rating: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), nullable=True)
     total_rides: Mapped[int] = mapped_column(default=0)
 
-    # Vehicle details
     vehicle_type: Mapped[VehicleType | None] = mapped_column(
         Enum(VehicleType), nullable=True
     )
     vehicle_make: Mapped[str | None] = mapped_column(String(64), nullable=True)
     vehicle_year: Mapped[int | None] = mapped_column(nullable=True)
 
+    application_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    city_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cities.id"), nullable=True
+    )
+    vehicle_photo_front_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    vehicle_photo_back_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    vehicle_photo_left_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    vehicle_photo_right_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    face_verification_file_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    face_verification_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    kyc_rejection_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     user: Mapped["User"] = relationship()  # type: ignore[name-defined]
     ride_type: Mapped["RideType"] = relationship()  # type: ignore[name-defined]
+    city: Mapped["City"] = relationship()  # type: ignore[name-defined]
     documents: Mapped[list["DriverDocument"]] = relationship(back_populates="profile")
 
 

@@ -76,37 +76,17 @@ async def create_profile(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
-    """Called during driver onboarding to create the profile for the first time."""
+    """Deprecated — profile is auto-created at driver login. Returns existing profile or 409."""
     existing = await db.execute(
         select(DriverProfile).where(DriverProfile.user_id == driver.id)
     )
-    if existing.scalar_one_or_none() is not None:
+    profile = existing.scalar_one_or_none()
+    if profile is not None:
         raise bad_request("Profile already exists", "PROFILE_EXISTS")
 
-    if not body.vehicle_model or not body.vehicle_plate or not body.vehicle_color:
-        raise bad_request(
-            "vehicle_model, vehicle_plate and vehicle_color are required",
-            "MISSING_FIELDS",
-        )
+    from app.models.enums import OnboardingStatus
 
-    ride_type_id = None
-    if body.ride_type_slug:
-        rt_result = await db.execute(
-            select(RideType).where(RideType.slug == body.ride_type_slug)
-        )
-        ride_type = rt_result.scalar_one_or_none()
-        if ride_type is None:
-            raise not_found("Ride type not found", "RIDE_TYPE_NOT_FOUND")
-        ride_type_id = ride_type.id
-
-    profile = DriverProfile(
-        user_id=driver.id,
-        vehicle_model=body.vehicle_model,
-        vehicle_plate=body.vehicle_plate,
-        vehicle_color=body.vehicle_color,
-        ride_type_id=ride_type_id,
-        kyc_status=KycStatus.pending,
-    )
+    profile = DriverProfile(user_id=driver.id, onboarding_status=OnboardingStatus.step1)
     db.add(profile)
     if body.name:
         driver.name = body.name

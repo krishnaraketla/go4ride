@@ -1,10 +1,11 @@
-"""Seed ride types, fare rules, and mock driver for Phase 1 / 1.5."""
+"""Seed ride types, fare rules, cities, and mock driver for Phase 1 / 1.5."""
 import asyncio
 from decimal import Decimal
 
 from sqlalchemy import select
 
 from app.db.session import async_session_factory
+from app.models.city import City
 from app.models.driver import DriverProfile
 from app.models.enums import KycStatus, OnboardingStatus, UserRole
 from app.models.ride import FareRule, RideType
@@ -13,15 +14,17 @@ from app.models.wallet import PaymentMethod, PromoCode
 
 MOCK_DRIVER_PHONE = "+919999000001"
 MOCK_DRIVER_NAME = "Dev Driver"
-MOCK_DRIVER_VEHICLE = {
-    "vehicle_model": "Toyota Etios",
-    "vehicle_plate": "KA01AB1234",
-    "vehicle_color": "white",
-    "current_lat": Decimal("12.9700"),
-    "current_lng": Decimal("77.5900"),
-    "kyc_status": KycStatus.approved,
-    "onboarding_status": OnboardingStatus.approved,
-}
+
+CITIES = [
+    ("bangalore", "Bangalore", "Karnataka"),
+    ("hyderabad", "Hyderabad", "Telangana"),
+    ("chennai", "Chennai", "Tamil Nadu"),
+    ("mumbai", "Mumbai", "Maharashtra"),
+    ("delhi", "Delhi", "Delhi"),
+    ("pune", "Pune", "Maharashtra"),
+    ("kolkata", "Kolkata", "West Bengal"),
+    ("ahmedabad", "Ahmedabad", "Gujarat"),
+]
 
 
 async def seed() -> None:
@@ -109,6 +112,26 @@ async def seed() -> None:
                     )
                     print(f"Seeded ride type {slug}")
 
+        for slug, name, state in CITIES:
+            existing = await db.execute(select(City).where(City.slug == slug))
+            if existing.scalar_one_or_none() is None:
+                db.add(City(slug=slug, name=name, state=state, is_active=True))
+                print(f"Seeded city {slug}")
+
+        bangalore_result = await db.execute(select(City).where(City.slug == "bangalore"))
+        bangalore = bangalore_result.scalar_one_or_none()
+
+        mock_driver_vehicle = {
+            "vehicle_model": "Toyota Etios",
+            "vehicle_plate": "KA01AB1234",
+            "vehicle_color": "white",
+            "current_lat": Decimal("12.9700"),
+            "current_lng": Decimal("77.5900"),
+            "kyc_status": KycStatus.approved,
+            "onboarding_status": OnboardingStatus.kyc_approved,
+            "city_id": bangalore.id if bangalore else None,
+        }
+
         driver_result = await db.execute(select(User).where(User.phone == MOCK_DRIVER_PHONE))
         driver_user = driver_result.scalar_one_or_none()
         if driver_user is None:
@@ -119,7 +142,7 @@ async def seed() -> None:
             )
             db.add(driver_user)
             await db.flush()
-            db.add(DriverProfile(user_id=driver_user.id, **MOCK_DRIVER_VEHICLE))
+            db.add(DriverProfile(user_id=driver_user.id, **mock_driver_vehicle))
             print(f"Seeded mock driver ({MOCK_DRIVER_PHONE})")
         else:
             profile_result = await db.execute(
@@ -127,11 +150,13 @@ async def seed() -> None:
             )
             profile = profile_result.scalar_one_or_none()
             if profile is None:
-                db.add(DriverProfile(user_id=driver_user.id, **MOCK_DRIVER_VEHICLE))
+                db.add(DriverProfile(user_id=driver_user.id, **mock_driver_vehicle))
                 print(f"Seeded driver profile for existing user ({MOCK_DRIVER_PHONE})")
             else:
                 profile.kyc_status = KycStatus.approved
-                profile.onboarding_status = OnboardingStatus.approved
+                profile.onboarding_status = OnboardingStatus.kyc_approved
+                if bangalore and profile.city_id is None:
+                    profile.city_id = bangalore.id
                 print(f"Mock driver already seeded ({MOCK_DRIVER_PHONE}); KYC ensured approved")
 
         promo_result = await db.execute(select(PromoCode).where(PromoCode.code == "WELCOME5"))

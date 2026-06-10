@@ -12,6 +12,7 @@ from app.models.enums import DocumentStatus, KycStatus, OnboardingStatus
 from app.models.user import User
 from app.schemas.admin import (
     AdminDocumentItem,
+    AdminVehiclePhotos,
     DriverApplicationActionResponse,
     DriverApplicationDetailResponse,
     DriverApplicationListItem,
@@ -22,7 +23,7 @@ from app.services.s3_service import presigned_get_url
 
 def _is_reviewable(profile: DriverProfile) -> bool:
     return (
-        profile.onboarding_status == OnboardingStatus.under_review
+        profile.onboarding_status == OnboardingStatus.application_submitted
         or profile.kyc_status == KycStatus.submitted
     )
 
@@ -63,7 +64,7 @@ async def list_driver_applications(
         .join(User, DriverProfile.user_id == User.id)
         .outerjoin(doc_stats, DriverProfile.user_id == doc_stats.c.driver_user_id)
         .where(DriverProfile.onboarding_status == status)
-        .order_by(doc_stats.c.submitted_at.desc().nullslast(), DriverProfile.user_id)
+        .order_by(DriverProfile.submitted_at.desc().nullslast(), DriverProfile.user_id)
         .offset(offset)
         .limit(limit)
     )
@@ -80,7 +81,7 @@ async def list_driver_applications(
             vehicle_model=profile.vehicle_model,
             vehicle_plate=profile.vehicle_plate,
             documents_count=documents_count or 0,
-            submitted_at=submitted_at,
+            submitted_at=profile.submitted_at or submitted_at,
         )
         for profile, user, documents_count, submitted_at in rows
     ]
@@ -101,7 +102,7 @@ async def get_driver_application(
         select(DriverProfile, User)
         .join(User, DriverProfile.user_id == User.id)
         .where(DriverProfile.user_id == driver_id)
-        .options(selectinload(DriverProfile.documents))
+        .options(selectinload(DriverProfile.documents), selectinload(DriverProfile.city))
     )
     row = result.one_or_none()
     if row is None:
@@ -120,18 +121,31 @@ async def get_driver_application(
         for doc in sorted(profile.documents, key=lambda d: d.created_at)
     ]
 
+    vehicle_photos = AdminVehiclePhotos(
+        front=_photo_url(profile.vehicle_photo_front_key),
+        back=_photo_url(profile.vehicle_photo_back_key),
+        left=_photo_url(profile.vehicle_photo_left_key),
+        right=_photo_url(profile.vehicle_photo_right_key),
+    )
+
     return DriverApplicationDetailResponse(
         driver_id=profile.user_id,
         name=user.name,
         phone=user.phone,
         onboarding_status=profile.onboarding_status,
         kyc_status=profile.kyc_status,
+        kyc_rejection_reason=profile.kyc_rejection_reason,
         vehicle_type=profile.vehicle_type,
         vehicle_make=profile.vehicle_make,
         vehicle_model=profile.vehicle_model,
         vehicle_year=profile.vehicle_year,
         vehicle_plate=profile.vehicle_plate,
         vehicle_color=profile.vehicle_color,
+        city_slug=profile.city.slug if profile.city else None,
+        city_name=profile.city.name if profile.city else None,
+        vehicle_photos=vehicle_photos,
+        face_verification_url=_photo_url(profile.face_verification_file_key),
+        face_verification_completed=profile.face_verification_completed,
         documents=documents,
     )
 
@@ -147,8 +161,9 @@ async def approve_driver_application(
             "INVALID_STATUS",
         )
 
-    profile.onboarding_status = OnboardingStatus.approved
+    profile.onboarding_status = OnboardingStatus.kyc_approved
     profile.kyc_status = KycStatus.approved
+    profile.kyc_rejection_reason = None
 
     docs_result = await db.execute(
         select(DriverDocument).where(DriverDocument.driver_user_id == driver_id)
@@ -179,8 +194,9 @@ async def reject_driver_application(
             "INVALID_STATUS",
         )
 
-    profile.onboarding_status = OnboardingStatus.rejected
+    profile.onboarding_status = OnboardingStatus.kyc_rejected
     profile.kyc_status = KycStatus.rejected
+    profile.kyc_rejection_reason = reason
 
     docs_result = await db.execute(
         select(DriverDocument).where(DriverDocument.driver_user_id == driver_id)
@@ -198,6 +214,12 @@ async def reject_driver_application(
         onboarding_status=profile.onboarding_status,
         kyc_status=profile.kyc_status,
     )
+
+
+def _photo_url(file_key: str | None) -> str | None:
+    if not file_key:
+        return None
+    return presigned_get_url(file_key)
 
 
 async def _get_profile_or_404(db: AsyncSession, driver_id: UUID) -> DriverProfile:

@@ -14,16 +14,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_driver
 from app.db.session import get_db
 from app.models.driver import DriverDocument, DriverProfile
-from app.models.enums import DocumentStatus
+from app.models.enums import DocumentStatus, KycStatus
 from app.models.user import User
 from app.schemas.driver import (
     ConfirmDocumentUploadRequest,
     DocumentResponse,
+    DocumentStatusItem,
     DocumentUploadUrlRequest,
     DocumentUploadUrlResponse,
     KycStatusResponse,
+    OverallProgress,
 )
 from app.schemas.response import ApiResponse, ok
+from app.services.driver_onboarding_service import (
+    REQUIRED_DOC_DEFS,
+    get_uploaded_document_types,
+    maybe_advance_to_step2,
+)
 from app.services.s3_service import presigned_put_url
 
 router = APIRouter(prefix="/documents", tags=["Driver Documents"])
@@ -51,6 +58,14 @@ async def confirm_upload(
     driver: Annotated[User, Depends(get_current_driver)],
 ):
     """After uploading to S3, call this to record the document in the DB."""
+    profile_result = await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == driver.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    if profile is None:
+        from app.core.exceptions import not_found
+        raise not_found("Driver profile not found", "PROFILE_NOT_FOUND")
+
     existing = await db.execute(
         select(DriverDocument).where(
             DriverDocument.driver_user_id == driver.id,
@@ -69,6 +84,11 @@ async def confirm_upload(
             status=DocumentStatus.pending,
         )
         db.add(doc)
+
+    uploaded_types = await get_uploaded_document_types(db, driver.id)
+    uploaded_types.add(body.document_type.value)
+    await maybe_advance_to_step2(db, profile, uploaded_types)
+
     await db.commit()
     await db.refresh(doc)
     return ok(DocumentResponse.model_validate(doc), message="Document confirmed")
@@ -79,9 +99,6 @@ async def get_kyc_status(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
-    from app.models.enums import KycStatus
-    from app.schemas.driver import DocumentStatusItem, OverallProgress
-
     profile_result = await db.execute(
         select(DriverProfile).where(DriverProfile.user_id == driver.id)
     )
@@ -93,36 +110,9 @@ async def get_kyc_status(
     )
     uploaded = {d.document_type.value: d for d in docs_result.scalars().all()}
 
-    required_docs = [
-        {
-            "type": "license",
-            "label": "Driver License",
-            "description": "Front & back side of license",
-            "sides_required": ["front", "back"],
-        },
-        {
-            "type": "registration",
-            "label": "Vehicle Registration",
-            "description": "RC Certificate",
-            "sides_required": ["front"],
-        },
-        {
-            "type": "insurance",
-            "label": "Insurance",
-            "description": "Active certificate of insurance",
-            "sides_required": ["front"],
-        },
-        {
-            "type": "profile_photo",
-            "label": "Profile Photo",
-            "description": "Clear front-facing photo",
-            "sides_required": ["front"],
-        },
-    ]
-
     document_items = []
     uploaded_count = 0
-    for doc_def in required_docs:
+    for doc_def in REQUIRED_DOC_DEFS:
         doc = uploaded.get(doc_def["type"])
         if doc:
             uploaded_count += 1
@@ -146,7 +136,7 @@ async def get_kyc_status(
             )
         )
 
-    total = len(required_docs)
+    total = len(REQUIRED_DOC_DEFS)
     percentage = int((uploaded_count / total) * 100)
 
     return ok(

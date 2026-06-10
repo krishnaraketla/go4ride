@@ -829,7 +829,7 @@ curl -X POST http://localhost:8000/api/v1/rides \
 
 Base path: `/api/v1/driver/auth`
 
-Uses the same request bodies and OTP response shape as rider auth (`phone` / `code`). Driver verify returns driver-specific fields in `data` (`driver_id`, `onboarding_status`, `profile`).
+Uses the same request bodies and OTP response shape as rider auth (`phone` / `code`). Driver verify returns driver-specific fields in `data` (`driver_id`, `onboarding_status`, `profile_status`, `application_id`, `profile`). A `DriverProfile` is auto-created at `step1` for new drivers.
 
 ### `POST /driver/auth/request-otp`
 
@@ -883,8 +883,11 @@ Optional: `fcm_token`, `platform` (stored when push token is provided).
     "refresh_token": "eyJ...",
     "token_type": "bearer",
     "token_expires_in": 900,
-    "is_new_driver": false,
-    "onboarding_status": "complete",
+    "is_new_driver": true,
+    "onboarding_status": "step1",
+    "profile_status": false,
+    "application_id": null,
+    "kyc_rejection_reason": null,
     "profile": {
       "name": "Dev Driver",
       "phone": "+919876543210",
@@ -893,6 +896,48 @@ Optional: `fcm_token`, `platform` (stored when push token is provided).
   }
 }
 ```
+
+`onboarding_status` values: `step1`, `step2`, `application_submitted`, `kyc_approved`, `kyc_rejected`. `profile_status` is `true` only when `onboarding_status` is `kyc_approved` (route to Home).
+
+---
+
+## Driver onboarding
+
+Base path: `/api/v1/driver`
+
+**Flow:** Step 1 upload all 4 documents → `step2` → submit vehicle + city + photos → `POST /onboarding/submit` → `application_submitted` → admin approve → `kyc_approved`.
+
+### `GET /driver/onboarding/status`
+
+Poll for waiting screen / post-login routing.
+
+**Auth:** Bearer driver token
+
+**Response `200`:** `onboarding_status`, `profile_status`, `application_id`, `kyc_rejection_reason`, `face_verification_completed`, `estimated_review_time` (`"15 minutes"` when under review, else `null`), `step_progress` (`documents_complete`, `vehicle_complete`, `city_selected`, `vehicle_photos_complete`).
+
+### `GET /driver/cities`
+
+List active cities for step 2. **Auth:** Bearer driver token.
+
+### `POST /driver/documents/upload-url` and `POST /driver/documents/confirm`
+
+Upload KYC documents. After all four types are confirmed (`license`, `registration`, `insurance`, `profile_photo`), status advances to `step2`.
+
+### `POST /driver/onboarding/vehicle-photos/upload-url`
+
+Presigned URL for vehicle photo sides: `front`, `back`, `left`, `right`.
+
+### `POST /driver/onboarding/vehicle`
+
+Step 2 — vehicle type (`auto` | `taxi` | `cab`), make, model, year, plate, color, `city_id`, and `photos` (S3 file keys from upload-url).
+
+### `POST /driver/onboarding/submit`
+
+Submit for review. Requires `step2` and all step progress complete. Sets `application_submitted`, persists `application_id`, `estimated_review_time`: `"15 minutes"`.
+
+### `POST /driver/onboarding/face-verification/upload-url` and `.../confirm`
+
+Allowed only when `application_submitted`. Records face photo and sets `face_verification_completed: true`.
 
 ---
 
@@ -910,7 +955,7 @@ List driver applications.
 
 **Auth:** `X-Admin-Key`
 
-**Query params:** `status` (default `under_review`), `page` (default 1), `limit` (default 20, max 100)
+**Query params:** `status` (default `application_submitted`), `page` (default 1), `limit` (default 20, max 100)
 
 **Response `200`**
 
@@ -924,7 +969,7 @@ List driver applications.
         "driver_id": "550e8400-e29b-41d4-a716-446655440000",
         "name": "Krishna",
         "phone": "+919876543210",
-        "onboarding_status": "under_review",
+        "onboarding_status": "application_submitted",
         "kyc_status": "submitted",
         "vehicle_make": "Maruti",
         "vehicle_model": "Swift",
@@ -954,11 +999,11 @@ Application detail including presigned document view URLs (15 min TTL).
 
 ### `POST /admin/driver-applications/{driver_id}/approve`
 
-Approve KYC. Sets `onboarding_status=approved`, `kyc_status=approved`, and marks all documents approved.
+Approve KYC. Sets `onboarding_status=kyc_approved`, `kyc_status=approved`, and marks all documents approved.
 
 **Auth:** `X-Admin-Key`
 
-**Precondition:** `onboarding_status=under_review` or `kyc_status=submitted`
+**Precondition:** `onboarding_status=application_submitted` or `kyc_status=submitted`
 
 **Errors:** `400 INVALID_STATUS`, `404 NOT_FOUND`
 

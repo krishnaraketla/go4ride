@@ -62,9 +62,15 @@ class VehicleType(str, enum.Enum):
 
 
 class OnboardingStatus(str, enum.Enum):
-    pending = "pending"
-    documents_uploaded = "documents_uploaded"
-    vehicle_submitted = "vehicle_submitted"
-    under_review = "under_review"
-    approved = "approved"
-    rejected = "rejected"
+    step1 = "step1"
+    step2 = "step2"
+    application_submitted = "application_submitted"
+    kyc_approved = "kyc_approved"
+    kyc_rejected = "kyc_rejected"
+
+
+class VehiclePhotoSide(str, enum.Enum):
+    front = "front"
+    back = "back"
+    left = "left"
+    right = "right"

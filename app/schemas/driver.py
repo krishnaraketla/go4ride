@@ -24,10 +24,10 @@ class DriverAuthResponse(BaseModel):
     token_type: str = "bearer"
     token_expires_in: int = Field(default=900, description="Access token validity in seconds")
     is_new_driver: bool
-    onboarding_status: str = Field(
-        default="pending",
-        description="pending = no profile yet, complete = profile exists",
-    )
+    onboarding_status: OnboardingStatus = OnboardingStatus.step1
+    profile_status: bool = False
+    application_id: str | None = None
+    kyc_rejection_reason: str | None = None
     profile: DriverBasicProfile
 
 
@@ -60,9 +60,9 @@ class DriverProfileResponse(BaseModel):
     driver_id: UUID
     name: str | None
     phone: str
-    vehicle_model: str
-    vehicle_plate: str
-    vehicle_color: str
+    vehicle_model: str | None
+    vehicle_plate: str | None
+    vehicle_color: str | None
     ride_type_slug: str | None
     driver_status: DriverStatus
     kyc_status: KycStatus
@@ -271,6 +271,13 @@ class DriverRideSearchResponse(BaseModel):
 # Onboarding — Vehicle
 # ---------------------------------------------------------------------------
 
+class VehiclePhotos(BaseModel):
+    front: str = Field(..., min_length=1)
+    back: str = Field(..., min_length=1)
+    left: str = Field(..., min_length=1)
+    right: str = Field(..., min_length=1)
+
+
 class VehicleSubmitRequest(BaseModel):
     vehicle_type: VehicleType
     make: str = Field(..., examples=["Maruti", "Tata"])
@@ -278,13 +285,8 @@ class VehicleSubmitRequest(BaseModel):
     year: int = Field(..., ge=2000, le=2030, examples=[2022])
     plate_number: str = Field(..., examples=["TS09AB1234"])
     color: str = Field(..., examples=["White"])
-
-
-class VehiclePhotos(BaseModel):
-    front: str | None = None
-    back: str | None = None
-    left: str | None = None
-    right: str | None = None
+    city_id: UUID
+    photos: VehiclePhotos
 
 
 class VehicleResponse(BaseModel):
@@ -317,11 +319,54 @@ class VerificationProgress(BaseModel):
 
 class SubmitApplicationResponse(BaseModel):
     application_id: str
-    onboarding_status: str
-    verification_progress: VerificationProgress
-    estimated_review_time: str = "24 hours"
+    onboarding_status: OnboardingStatus
+    profile_status: bool
+    estimated_review_time: str
     submitted_at: datetime
     message: str
+
+
+class StepProgress(BaseModel):
+    documents_complete: bool
+    vehicle_complete: bool
+    city_selected: bool
+    vehicle_photos_complete: bool
+
+
+class OnboardingStatusResponse(BaseModel):
+    onboarding_status: OnboardingStatus
+    profile_status: bool
+    application_id: str | None
+    kyc_rejection_reason: str | None
+    face_verification_completed: bool
+    estimated_review_time: str | None
+    step_progress: StepProgress
+
+
+class CityResponse(BaseModel):
+    id: UUID
+    slug: str
+    name: str
+    state: str | None
+
+
+class VehiclePhotoUploadUrlRequest(BaseModel):
+    side: str = Field(..., examples=["front", "back", "left", "right"])
+    content_type: str = Field(
+        default="image/jpeg",
+        examples=["image/jpeg", "image/png"],
+    )
+
+
+class FaceVerificationUploadUrlRequest(BaseModel):
+    content_type: str = Field(
+        default="image/jpeg",
+        examples=["image/jpeg", "image/png"],
+    )
+
+
+class FaceVerificationConfirmRequest(BaseModel):
+    file_key: str
 
 
 # ---------------------------------------------------------------------------

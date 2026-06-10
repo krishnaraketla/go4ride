@@ -13,8 +13,8 @@ class DriverApplicationListItem(BaseModel):
     onboarding_status: OnboardingStatus
     kyc_status: KycStatus
     vehicle_make: str | None
-    vehicle_model: str
-    vehicle_plate: str
+    vehicle_model: str | None
+    vehicle_plate: str | None
     documents_count: int
     submitted_at: datetime | None
 
@@ -35,18 +35,31 @@ class AdminDocumentItem(BaseModel):
     view_url: str
 
 
+class AdminVehiclePhotos(BaseModel):
+    front: str | None = None
+    back: str | None = None
+    left: str | None = None
+    right: str | None = None
+
+
 class DriverApplicationDetailResponse(BaseModel):
     driver_id: UUID
     name: str | None
     phone: str
     onboarding_status: OnboardingStatus
     kyc_status: KycStatus
+    kyc_rejection_reason: str | None
     vehicle_type: VehicleType | None
     vehicle_make: str | None
-    vehicle_model: str
+    vehicle_model: str | None
     vehicle_year: int | None
-    vehicle_plate: str
-    vehicle_color: str
+    vehicle_plate: str | None
+    vehicle_color: str | None
+    city_slug: str | None
+    city_name: str | None
+    vehicle_photos: AdminVehiclePhotos
+    face_verification_url: str | None
+    face_verification_completed: bool
     documents: list[AdminDocumentItem]
 
 

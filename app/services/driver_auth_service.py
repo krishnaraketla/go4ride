@@ -1,7 +1,7 @@
 """Driver-specific auth service.
 
 Mirrors the rider auth flow but creates accounts with role=UserRole.driver
-and does NOT auto-create a DriverProfile (that happens during onboarding).
+and auto-creates a DriverProfile at step1 for new drivers.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -19,7 +19,8 @@ from app.core.security import (
     hash_refresh_token,
     verify_otp,
 )
-from app.models.enums import OTPPurpose, UserRole
+from app.models.driver import DriverProfile
+from app.models.enums import OnboardingStatus, OTPPurpose, UserRole
 from app.models.user import OTPVerification, RefreshToken, User, UserDevice
 from app.services.auth_service import _create_otp
 
@@ -82,6 +83,7 @@ async def verify_otp_and_login_driver(
         user = User(phone=phone, name=name, role=UserRole.driver)
         db.add(user)
         await db.flush()
+        db.add(DriverProfile(user_id=user.id, onboarding_status=OnboardingStatus.step1))
     else:
         if user.is_blocked:
             raise bad_request("Account is blocked", "ACCOUNT_BLOCKED")

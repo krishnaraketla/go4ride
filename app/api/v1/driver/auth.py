@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.deps import get_current_driver
 from app.db.session import get_db
 from app.models.driver import DriverProfile
+from app.models.enums import OnboardingStatus
 from app.models.user import User
 from app.schemas.auth import OTPSentData, RequestOTPRequest, VerifyOTPRequest
 from app.schemas.driver import (
@@ -22,8 +23,21 @@ from app.schemas.driver import (
 from app.schemas.response import ApiResponse, ok
 from app.services import driver_auth_service
 from app.services.auth_service import logout, refresh_tokens
+from app.services.driver_onboarding_service import profile_status_for
 
 router = APIRouter(prefix="/auth", tags=["Driver Auth"])
+
+
+async def _get_or_create_profile(db: AsyncSession, user: User) -> DriverProfile:
+    result = await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == user.id)
+    )
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        profile = DriverProfile(user_id=user.id, onboarding_status=OnboardingStatus.step1)
+        db.add(profile)
+        await db.flush()
+    return profile
 
 
 @router.post("/request-otp", response_model=ApiResponse[OTPSentData])
@@ -55,12 +69,7 @@ async def verify_otp(
         platform=body.platform,
     )
 
-    profile_result = await db.execute(
-        select(DriverProfile).where(DriverProfile.user_id == user.id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    onboarding_status = "complete" if profile is not None else "pending"
-
+    profile = await _get_or_create_profile(db, user)
     settings = get_settings()
     await db.commit()
 
@@ -71,7 +80,10 @@ async def verify_otp(
             refresh_token=refresh,
             token_expires_in=settings.jwt_access_expire_minutes * 60,
             is_new_driver=is_new,
-            onboarding_status=onboarding_status,
+            onboarding_status=profile.onboarding_status,
+            profile_status=profile_status_for(profile),
+            application_id=profile.application_id,
+            kyc_rejection_reason=profile.kyc_rejection_reason,
             profile=DriverBasicProfile(
                 name=user.name,
                 phone=body.phone,

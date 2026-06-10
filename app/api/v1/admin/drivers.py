@@ -25,7 +25,7 @@ router = APIRouter(prefix="/driver-applications", tags=["Admin — Driver KYC"])
 async def list_driver_applications(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[None, Depends(verify_admin_key)],
-    status: OnboardingStatus = Query(default=OnboardingStatus.under_review),
+    status: OnboardingStatus = Query(default=OnboardingStatus.application_submitted),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
 ):
