@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     driver_search_max_radius_km: float = 50.0
     driver_eta_cache_ttl_sec: int = 30
     driver_location_publish_interval_sec: int = 10
+    # False (default): deliver WebSocket events in-process (single Render instance).
+    # True: fan out via Redis pub/sub for multiple app instances.
+    websocket_redis_fanout: bool = False
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     public_base_url: str | None = None

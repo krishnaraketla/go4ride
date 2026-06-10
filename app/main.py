@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import set_request_id, setup_logging
 from app.core.openapi import OPENAPI_DESCRIPTION, configure_openapi
+from app.api.v1.ws import shutdown_websocket_listeners
 from app.core.redis import check_redis, close_redis
 from app.db.session import check_postgres, engine
 from app.schemas.response import fail
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
         logger.error("redis_startup_check_failed")
 
     yield
+    await shutdown_websocket_listeners()
     await close_redis()
     await engine.dispose()
 

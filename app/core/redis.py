@@ -9,6 +9,7 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 _redis: redis.Redis | None = None
+_pubsub_redis: redis.Redis | None = None
 
 T = TypeVar("T")
 
@@ -21,8 +22,37 @@ async def get_redis() -> redis.Redis:
     return _redis
 
 
+async def get_pubsub_redis() -> redis.Redis:
+    """Dedicated Redis client for long-lived pub/sub reads (no socket timeout)."""
+    global _pubsub_redis
+    if _pubsub_redis is None:
+        settings = get_settings()
+        _pubsub_redis = redis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_timeout=None,
+        )
+    return _pubsub_redis
+
+
+async def reset_pubsub_redis() -> None:
+    global _pubsub_redis
+    if _pubsub_redis is not None:
+        try:
+            await _pubsub_redis.aclose()
+        except redis.RedisError:
+            pass
+        _pubsub_redis = None
+
+
 async def close_redis() -> None:
-    global _redis
+    global _redis, _pubsub_redis
+    if _pubsub_redis is not None:
+        try:
+            await _pubsub_redis.aclose()
+        except redis.RedisError:
+            pass
+        _pubsub_redis = None
     if _redis is not None:
         await _redis.aclose()
         _redis = None
@@ -50,11 +80,18 @@ async def check_redis() -> bool:
 async def publish_ride_event(ride_id: str, payload: dict[str, Any]) -> None:
     import json
 
-    client = await get_redis()
-    await _redis_call(
-        "publish_ride_event",
-        client.publish(f"ride:{ride_id}", json.dumps(payload)),
-    )
+    from app.api.v1.ws import broadcast_ride_event
+
+    data = json.dumps(payload)
+    settings = get_settings()
+    if settings.websocket_redis_fanout:
+        client = await get_redis()
+        await _redis_call(
+            "publish_ride_event",
+            client.publish(f"ride:{ride_id}", data),
+        )
+    else:
+        await broadcast_ride_event(ride_id, data)
 
 
 async def check_rate_limit(key: str, limit: int, window_seconds: int) -> bool:

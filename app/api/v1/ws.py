@@ -2,10 +2,12 @@ import asyncio
 import logging
 from uuid import UUID
 
+import redis.asyncio as redis
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from jose import JWTError
 
-from app.core.redis import get_redis
+from app.core.config import get_settings
+from app.core.redis import get_pubsub_redis, reset_pubsub_redis
 from app.core.security import verify_token
 from app.db.session import async_session_factory
 from app.services import ride_service
@@ -14,41 +16,105 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
 
 _connections: dict[str, set[WebSocket]] = {}
-_redis_listeners: set[str] = set()
+_listener_tasks: dict[str, asyncio.Task] = {}
 
 
-async def _subscribe_redis(ride_id: str) -> None:
-    if ride_id in _redis_listeners:
-        return
-    _redis_listeners.add(ride_id)
-    client = await get_redis()
-    pubsub = client.pubsub()
-    await pubsub.subscribe(f"ride:{ride_id}")
-
-    async def listener():
+async def broadcast_ride_event(ride_id: str, data: str) -> None:
+    """Deliver a ride event to all WebSocket clients on this process."""
+    dead: set[WebSocket] = set()
+    for ws in list(_connections.get(ride_id, set())):
         try:
-            async for message in pubsub.listen():
-                if message["type"] != "message":
-                    continue
-                data = message["data"]
-                dead = set()
-                for ws in _connections.get(ride_id, set()):
-                    try:
-                        await ws.send_text(data if isinstance(data, str) else data.decode())
-                    except Exception:
-                        dead.add(ws)
-                for ws in dead:
-                    _connections.get(ride_id, set()).discard(ws)
-        except asyncio.CancelledError:
-            pass
+            await ws.send_text(data)
         except Exception:
-            logger.exception("websocket_pubsub_listener_failed", extra={"ride_id": ride_id})
-        finally:
-            _redis_listeners.discard(ride_id)
-            await pubsub.unsubscribe(f"ride:{ride_id}")
-            await pubsub.close()
+            dead.add(ws)
+    for ws in dead:
+        _connections.get(ride_id, set()).discard(ws)
 
-    asyncio.create_task(listener())
+
+def _channel(ride_id: str) -> str:
+    return f"ride:{ride_id}"
+
+
+async def _redis_listener(ride_id: str) -> None:
+    channel = _channel(ride_id)
+    try:
+        while _connections.get(ride_id):
+            pubsub = None
+            try:
+                client = await get_pubsub_redis()
+                pubsub = client.pubsub()
+                await pubsub.subscribe(channel)
+                async for message in pubsub.listen():
+                    if not _connections.get(ride_id):
+                        break
+                    if message["type"] != "message":
+                        continue
+                    data = message["data"]
+                    text = data if isinstance(data, str) else data.decode()
+                    await broadcast_ride_event(ride_id, text)
+            except asyncio.CancelledError:
+                raise
+            except (redis.TimeoutError, redis.ConnectionError) as exc:
+                if not _connections.get(ride_id):
+                    break
+                logger.warning(
+                    "websocket_pubsub_reconnecting",
+                    extra={"ride_id": ride_id, "error": str(exc)},
+                )
+                await reset_pubsub_redis()
+                await asyncio.sleep(1)
+            except redis.RedisError:
+                if not _connections.get(ride_id):
+                    break
+                logger.exception(
+                    "websocket_pubsub_listener_failed",
+                    extra={"ride_id": ride_id},
+                )
+                await reset_pubsub_redis()
+                await asyncio.sleep(1)
+            finally:
+                if pubsub is not None:
+                    try:
+                        await pubsub.unsubscribe(channel)
+                    except redis.RedisError:
+                        pass
+                    try:
+                        await pubsub.close()
+                    except redis.RedisError:
+                        pass
+    except asyncio.CancelledError:
+        pass
+    finally:
+        _listener_tasks.pop(ride_id, None)
+
+
+def _ensure_redis_listener(ride_id: str) -> None:
+    task = _listener_tasks.get(ride_id)
+    if task is not None and not task.done():
+        return
+    _listener_tasks[ride_id] = asyncio.create_task(_redis_listener(ride_id))
+
+
+def _stop_redis_listener(ride_id: str) -> None:
+    task = _listener_tasks.pop(ride_id, None)
+    if task is not None and not task.done():
+        task.cancel()
+
+
+def _on_client_disconnect(ride_id: str) -> None:
+    if _connections.get(ride_id):
+        return
+    _connections.pop(ride_id, None)
+    if get_settings().websocket_redis_fanout:
+        _stop_redis_listener(ride_id)
+
+
+async def shutdown_websocket_listeners() -> None:
+    for ride_id in list(_listener_tasks):
+        _stop_redis_listener(ride_id)
+    if _listener_tasks:
+        await asyncio.gather(*_listener_tasks.values(), return_exceptions=True)
+        _listener_tasks.clear()
 
 
 @router.websocket("/ws/rides/{ride_id}")
@@ -77,7 +143,8 @@ async def ride_websocket(
     await websocket.accept()
     key = str(ride_id)
     _connections.setdefault(key, set()).add(websocket)
-    await _subscribe_redis(key)
+    if get_settings().websocket_redis_fanout:
+        _ensure_redis_listener(key)
 
     await websocket.send_json(
         {"type": "connected", "ride_id": key, "user_id": user_id}
@@ -88,5 +155,4 @@ async def ride_websocket(
             await websocket.receive_text()
     except WebSocketDisconnect:
         _connections.get(key, set()).discard(websocket)
-        if not _connections.get(key):
-            _connections.pop(key, None)
+        _on_client_disconnect(key)
