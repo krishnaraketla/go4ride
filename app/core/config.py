@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     max_saved_addresses_per_user: int = 10
 
     admin_api_key: str = ""
+    clear_rides_on_startup: bool = False
     aws_region: str = "ap-south-1"
     s3_bucket: str = "go4ride-kyc"
 

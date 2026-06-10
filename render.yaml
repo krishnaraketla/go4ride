@@ -18,7 +18,7 @@ services:
     branch: main
     healthCheckPath: /health
     buildCommand: pip install -e .
-    startCommand: alembic upgrade head && python -m app.db.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level info
+    startCommand: alembic upgrade head && python -m app.db.seed && python -m app.db.clear_rides && uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level info
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -65,6 +65,8 @@ services:
         value: INR
       - key: ADMIN_API_KEY
         sync: false              # set manually in Render dashboard for internal admin UI
+      - key: CLEAR_RIDES_ON_STARTUP
+        value: "true"            # wipe rides on every deploy; set false once you have real users
 
   # Render's free Redis-compatible service is the "Key Value" instance.
   # Persistence is unavailable on the free plan, which is fine for this app:
