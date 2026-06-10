@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import DocumentStatus, DocumentType, DriverStatus, KycStatus, OnboardingStatus, VehicleType
+from app.models.enums import DocumentStatus, DriverStatus, KycStatus, OnboardingStatus
 
 
 # ---------------------------------------------------------------------------
@@ -17,6 +17,15 @@ class DriverBasicProfile(BaseModel):
     avatar_url: str | None = None
 
 
+class OnboardingState(BaseModel):
+    onboarding_status: OnboardingStatus
+    profile_status: bool
+    application_id: str | None
+    kyc_rejection_reason: str | None
+    face_verification_completed: bool
+    estimated_review_time: str | None
+
+
 class DriverAuthResponse(BaseModel):
     driver_id: str
     access_token: str
@@ -24,10 +33,7 @@ class DriverAuthResponse(BaseModel):
     token_type: str = "bearer"
     token_expires_in: int = Field(default=900, description="Access token validity in seconds")
     is_new_driver: bool
-    onboarding_status: OnboardingStatus = OnboardingStatus.step1
-    profile_status: bool = False
-    application_id: str | None = None
-    kyc_rejection_reason: str | None = None
+    onboarding: OnboardingState
     profile: DriverBasicProfile
 
 
@@ -41,6 +47,7 @@ class DriverRefreshResponse(BaseModel):
     token_type: str = "bearer"
     token_expires_in: int = Field(default=900, description="Access token validity in seconds")
     refresh_token_expires_in: int = Field(default=604800, description="Refresh token validity in seconds")
+    onboarding: OnboardingState
 
 
 class DriverLogoutRequest(BaseModel):
@@ -268,157 +275,27 @@ class DriverRideSearchResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Onboarding — Vehicle
+# Onboarding
 # ---------------------------------------------------------------------------
 
-class VehiclePhotos(BaseModel):
-    front: str = Field(..., min_length=1)
-    back: str = Field(..., min_length=1)
-    left: str = Field(..., min_length=1)
-    right: str = Field(..., min_length=1)
-
-
-class VehicleSubmitRequest(BaseModel):
-    vehicle_type: VehicleType
-    make: str = Field(..., examples=["Maruti", "Tata"])
-    model: str = Field(..., examples=["Swift", "Nexon"])
-    year: int = Field(..., ge=2000, le=2030, examples=[2022])
-    plate_number: str = Field(..., examples=["TS09AB1234"])
-    color: str = Field(..., examples=["White"])
-    city_id: UUID
-    photos: VehiclePhotos
-
-
-class VehicleResponse(BaseModel):
-    vehicle_id: str
-    driver_id: str
+class DocumentSummary(BaseModel):
     type: str
-    make: str
-    model: str
-    year: int
-    plate_number: str
-    color: str
-    photos: VehiclePhotos
-    status: str
-
-
-class VehicleSubmitResponse(BaseModel):
-    vehicle: VehicleResponse
-    onboarding_step: str = "submit_application"
-
-
-# ---------------------------------------------------------------------------
-# Onboarding — Submit Application
-# ---------------------------------------------------------------------------
-
-class VerificationProgress(BaseModel):
-    documents_uploaded: bool
-    vehicle_details_submitted: bool
-    face_verification_completed: bool
-
-
-class SubmitApplicationResponse(BaseModel):
-    application_id: str
-    onboarding_status: OnboardingStatus
-    profile_status: bool
-    estimated_review_time: str
-    submitted_at: datetime
-    message: str
-
-
-class StepProgress(BaseModel):
-    documents_complete: bool
-    vehicle_complete: bool
-    city_selected: bool
-    vehicle_photos_complete: bool
-
-
-class OnboardingStatusResponse(BaseModel):
-    onboarding_status: OnboardingStatus
-    profile_status: bool
-    application_id: str | None
-    kyc_rejection_reason: str | None
-    face_verification_completed: bool
-    estimated_review_time: str | None
-    step_progress: StepProgress
-
-
-class CityResponse(BaseModel):
     id: UUID
-    slug: str
-    name: str
-    state: str | None
-
-
-class VehiclePhotoUploadUrlRequest(BaseModel):
-    side: str = Field(..., examples=["front", "back", "left", "right"])
-    content_type: str = Field(
-        default="image/jpeg",
-        examples=["image/jpeg", "image/png"],
-    )
-
-
-class FaceVerificationUploadUrlRequest(BaseModel):
-    content_type: str = Field(
-        default="image/jpeg",
-        examples=["image/jpeg", "image/png"],
-    )
-
-
-class FaceVerificationConfirmRequest(BaseModel):
-    file_key: str
-
-
-# ---------------------------------------------------------------------------
-# Documents / KYC
-# ---------------------------------------------------------------------------
-
-class DocumentUploadUrlRequest(BaseModel):
-    document_type: DocumentType
-    content_type: str = Field(
-        default="image/jpeg",
-        examples=["image/jpeg", "image/png", "application/pdf"],
-    )
-
-
-class DocumentUploadUrlResponse(BaseModel):
-    upload_url: str
-    file_key: str
-    expires_in: int = 900
-
-
-class ConfirmDocumentUploadRequest(BaseModel):
-    document_type: DocumentType
-    file_key: str
-
-
-class DocumentResponse(BaseModel):
-    id: UUID
-    document_type: DocumentType
     status: DocumentStatus
-    rejection_reason: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
-class DocumentStatusItem(BaseModel):
-    type: str
-    label: str
-    description: str
-    status: str
-    sides_required: list[str]
-    uploaded_at: datetime | None
-    rejection_reason: str | None
+class DocumentsSubmitResponse(BaseModel):
+    onboarding: OnboardingState
+    documents: list[DocumentSummary]
 
 
-class OverallProgress(BaseModel):
-    uploaded: int
-    total: int
-    percentage: int
+class VehicleSubmitResponse(BaseModel):
+    onboarding: OnboardingState
+    submitted_at: datetime
 
 
-class KycStatusResponse(BaseModel):
-    kyc_status: KycStatus
-    overall_progress: OverallProgress
-    documents: list[DocumentStatusItem]
+class FaceVerificationResponse(BaseModel):
+    onboarding: OnboardingState

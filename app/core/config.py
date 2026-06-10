@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     clear_rides_on_startup: bool = True
     aws_region: str = "ap-south-1"
     s3_bucket: str = "go4ride-kyc"
+    max_upload_size_mb: int = 10
 
     @field_validator("database_url", mode="before")
     @classmethod

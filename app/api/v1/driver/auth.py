@@ -9,7 +9,7 @@ from app.core.config import get_settings
 from app.core.deps import get_current_driver
 from app.db.session import get_db
 from app.models.driver import DriverProfile
-from app.models.enums import OnboardingStatus
+from app.models.enums import DriverStatus, OnboardingStatus
 from app.models.user import User
 from app.schemas.auth import OTPSentData, RequestOTPRequest, VerifyOTPRequest
 from app.schemas.driver import (
@@ -23,7 +23,7 @@ from app.schemas.driver import (
 from app.schemas.response import ApiResponse, ok
 from app.services import driver_auth_service
 from app.services.auth_service import logout, refresh_tokens
-from app.services.driver_onboarding_service import profile_status_for
+from app.services.driver_onboarding_service import build_onboarding_state
 
 router = APIRouter(prefix="/auth", tags=["Driver Auth"])
 
@@ -80,10 +80,7 @@ async def verify_otp(
             refresh_token=refresh,
             token_expires_in=settings.jwt_access_expire_minutes * 60,
             is_new_driver=is_new,
-            onboarding_status=profile.onboarding_status,
-            profile_status=profile_status_for(profile),
-            application_id=profile.application_id,
-            kyc_rejection_reason=profile.kyc_rejection_reason,
+            onboarding=build_onboarding_state(profile),
             profile=DriverBasicProfile(
                 name=user.name,
                 phone=body.phone,
@@ -101,13 +98,25 @@ async def refresh(
 ):
     user, access, new_refresh = await refresh_tokens(db, body.refresh_token)
     settings = get_settings()
+
+    profile_result = await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == user.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    if profile is None:
+        profile = DriverProfile(user_id=user.id, onboarding_status=OnboardingStatus.step1)
+        db.add(profile)
+        await db.flush()
+
     await db.commit()
+
     return ok(
         DriverRefreshResponse(
             access_token=access,
             refresh_token=new_refresh,
             token_expires_in=settings.jwt_access_expire_minutes * 60,
             refresh_token_expires_in=settings.jwt_refresh_expire_days * 24 * 60 * 60,
+            onboarding=build_onboarding_state(profile),
         ),
         message="Token refreshed",
     )
@@ -126,7 +135,6 @@ async def driver_logout(
     )
     profile = profile_result.scalar_one_or_none()
     if profile is not None:
-        from app.models.enums import DriverStatus
         profile.driver_status = DriverStatus.offline
 
     logged_out_at = datetime.now(timezone.utc)

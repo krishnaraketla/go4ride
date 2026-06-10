@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.driver import DriverDocument, DriverProfile
 from app.models.enums import DocumentType, KycStatus, OnboardingStatus
-from app.schemas.driver import OnboardingStatusResponse, StepProgress
+from app.schemas.driver import OnboardingState
 
 REQUIRED_DOCUMENT_TYPES: tuple[DocumentType, ...] = (
     DocumentType.license,
@@ -16,33 +16,6 @@ REQUIRED_DOCUMENT_TYPES: tuple[DocumentType, ...] = (
     DocumentType.insurance,
     DocumentType.profile_photo,
 )
-
-REQUIRED_DOC_DEFS: list[dict] = [
-    {
-        "type": "license",
-        "label": "Driver License",
-        "description": "Front & back side of license",
-        "sides_required": ["front", "back"],
-    },
-    {
-        "type": "registration",
-        "label": "Vehicle Registration",
-        "description": "RC Certificate",
-        "sides_required": ["front"],
-    },
-    {
-        "type": "insurance",
-        "label": "Insurance",
-        "description": "Active certificate of insurance",
-        "sides_required": ["front"],
-    },
-    {
-        "type": "profile_photo",
-        "label": "Profile Photo",
-        "description": "Clear front-facing photo",
-        "sides_required": ["front"],
-    },
-]
 
 ESTIMATED_REVIEW_TIME = "15 minutes"
 
@@ -85,18 +58,13 @@ def vehicle_details_complete(profile: DriverProfile) -> bool:
     )
 
 
-def step_progress_for(profile: DriverProfile, uploaded_types: set[str]) -> dict[str, bool]:
-    return {
-        "documents_complete": documents_complete(uploaded_types),
-        "vehicle_complete": vehicle_details_complete(profile),
-        "city_selected": profile.city_id is not None,
-        "vehicle_photos_complete": vehicle_photos_complete(profile),
-    }
-
-
 def step2_complete(profile: DriverProfile, uploaded_types: set[str]) -> bool:
-    progress = step_progress_for(profile, uploaded_types)
-    return all(progress.values())
+    return (
+        documents_complete(uploaded_types)
+        and vehicle_details_complete(profile)
+        and profile.city_id is not None
+        and vehicle_photos_complete(profile)
+    )
 
 
 def generate_application_id(driver_id: UUID) -> str:
@@ -128,15 +96,12 @@ async def maybe_advance_to_step2(
     profile.onboarding_status = OnboardingStatus.step2
 
 
-def build_onboarding_status_response(
-    profile: DriverProfile, uploaded_types: set[str]
-) -> OnboardingStatusResponse:
-    return OnboardingStatusResponse(
+def build_onboarding_state(profile: DriverProfile) -> OnboardingState:
+    return OnboardingState(
         onboarding_status=profile.onboarding_status,
         profile_status=profile_status_for(profile),
         application_id=profile.application_id,
         kyc_rejection_reason=profile.kyc_rejection_reason,
         face_verification_completed=profile.face_verification_completed,
         estimated_review_time=estimated_review_time_for(profile),
-        step_progress=StepProgress(**step_progress_for(profile, uploaded_types)),
     )

@@ -829,7 +829,7 @@ curl -X POST http://localhost:8000/api/v1/rides \
 
 Base path: `/api/v1/driver/auth`
 
-Uses the same request bodies and OTP response shape as rider auth (`phone` / `code`). Driver verify returns driver-specific fields in `data` (`driver_id`, `onboarding_status`, `profile_status`, `application_id`, `profile`). A `DriverProfile` is auto-created at `step1` for new drivers.
+Uses the same request bodies and OTP response shape as rider auth (`phone` / `code`). Driver verify returns driver-specific fields in `data` (`driver_id`, `onboarding`, `profile`). A `DriverProfile` is auto-created at `step1` for new drivers. The nested `onboarding` object drives frontend routing — no separate status poll endpoint.
 
 ### `POST /driver/auth/request-otp`
 
@@ -884,10 +884,14 @@ Optional: `fcm_token`, `platform` (stored when push token is provided).
     "token_type": "bearer",
     "token_expires_in": 900,
     "is_new_driver": true,
-    "onboarding_status": "step1",
-    "profile_status": false,
-    "application_id": null,
-    "kyc_rejection_reason": null,
+    "onboarding": {
+      "onboarding_status": "step1",
+      "profile_status": false,
+      "application_id": null,
+      "kyc_rejection_reason": null,
+      "face_verification_completed": false,
+      "estimated_review_time": null
+    },
     "profile": {
       "name": "Dev Driver",
       "phone": "+919876543210",
@@ -897,47 +901,53 @@ Optional: `fcm_token`, `platform` (stored when push token is provided).
 }
 ```
 
-`onboarding_status` values: `step1`, `step2`, `application_submitted`, `kyc_approved`, `kyc_rejected`. `profile_status` is `true` only when `onboarding_status` is `kyc_approved` (route to Home).
+`onboarding.onboarding_status` values: `step1`, `step2`, `application_submitted`, `kyc_approved`, `kyc_rejected`. `onboarding.profile_status` is `true` only when `onboarding_status` is `kyc_approved` (route to Home).
+
+### `POST /driver/auth/refresh`
+
+Same as rider refresh, plus `onboarding` in `data` so the app can resume routing without a status poll.
 
 ---
 
 ## Driver onboarding
 
-Base path: `/api/v1/driver`
+Base path: `/api/v1/driver/onboarding`
 
-**Flow:** Step 1 upload all 4 documents → `step2` → submit vehicle + city + photos → `POST /onboarding/submit` → `application_submitted` → admin approve → `kyc_approved`.
+**Flow:** `POST /documents` (all 4 files) → `step2` → `POST /vehicle` (vehicle + city + photos, auto-submits) → `application_submitted` → optional `POST /face-verification` → admin approve → `kyc_approved`.
 
-### `GET /driver/onboarding/status`
+All submit endpoints use `multipart/form-data`. Each response includes an updated `onboarding` object for navigation.
 
-Poll for waiting screen / post-login routing.
+### `POST /driver/onboarding/documents`
 
-**Auth:** Bearer driver token
+Upload all KYC documents in one request. **Auth:** Bearer driver token.
 
-**Response `200`:** `onboarding_status`, `profile_status`, `application_id`, `kyc_rejection_reason`, `face_verification_completed`, `estimated_review_time` (`"15 minutes"` when under review, else `null`), `step_progress` (`documents_complete`, `vehicle_complete`, `city_selected`, `vehicle_photos_complete`).
+**Multipart fields:** `license`, `registration`, `insurance`, `profile_photo` (files; JPEG, PNG, or PDF; max 10 MB each).
 
-### `GET /driver/cities`
+**Precondition:** `onboarding_status` is `step1` or `kyc_rejected`.
 
-List active cities for step 2. **Auth:** Bearer driver token.
-
-### `POST /driver/documents/upload-url` and `POST /driver/documents/confirm`
-
-Upload KYC documents. After all four types are confirmed (`license`, `registration`, `insurance`, `profile_photo`), status advances to `step2`.
-
-### `POST /driver/onboarding/vehicle-photos/upload-url`
-
-Presigned URL for vehicle photo sides: `front`, `back`, `left`, `right`.
+**Response `201`:** `onboarding` (status becomes `step2`), `documents[]` with `type`, `id`, `status`, `created_at`.
 
 ### `POST /driver/onboarding/vehicle`
 
-Step 2 — vehicle type (`auto` | `taxi` | `cab`), make, model, year, plate, color, `city_id`, and `photos` (S3 file keys from upload-url).
+Submit vehicle details, operating city, and photos. Auto-submits the application for admin review. **Auth:** Bearer driver token.
 
-### `POST /driver/onboarding/submit`
+**Form fields:** `vehicle_type` (`auto` | `taxi` | `cab`), `make`, `model`, `year`, `plate_number`, `color`, `city_slug` (must match an active seeded city, e.g. `bangalore`).
 
-Submit for review. Requires `step2` and all step progress complete. Sets `application_submitted`, persists `application_id`, `estimated_review_time`: `"15 minutes"`.
+**File fields:** `photo_front`, `photo_back`, `photo_left`, `photo_right`.
 
-### `POST /driver/onboarding/face-verification/upload-url` and `.../confirm`
+**Precondition:** documents complete (`step2` or `kyc_rejected` with all 4 docs).
 
-Allowed only when `application_submitted`. Records face photo and sets `face_verification_completed: true`.
+**Response `201`:** `onboarding` (status becomes `application_submitted`, includes `application_id`, `estimated_review_time`: `"15 minutes"`), `submitted_at`.
+
+### `POST /driver/onboarding/face-verification`
+
+Optional face photo while application is under review. **Auth:** Bearer driver token.
+
+**Multipart field:** `photo` (file).
+
+**Precondition:** `onboarding_status` is `application_submitted`.
+
+**Response `200`:** `onboarding` with `face_verification_completed: true`.
 
 ---
 
@@ -947,7 +957,7 @@ Base path: `/api/v1/admin`
 
 Protected by `X-Admin-Key` header matching `ADMIN_API_KEY` in server config. When `ADMIN_API_KEY` is unset, admin routes return `503 ADMIN_NOT_CONFIGURED`.
 
-Used for driver KYC review after `POST /driver/onboarding/submit`.
+Used for driver KYC review after `POST /driver/onboarding/vehicle` auto-submits the application.
 
 ### `GET /admin/driver-applications`
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import os
 import uuid
 
@@ -14,8 +15,7 @@ from tests.api_helpers import api_error, api_json
 
 API = "/api/v1"
 ADMIN_KEY = "test-admin-key-secret"
-
-REQUIRED_DOCS = ("license", "registration", "insurance", "profile_photo")
+CITY_SLUG = "bangalore"
 
 
 def _integration_enabled() -> bool:
@@ -61,7 +61,15 @@ def _reset_clients() -> None:
     asyncio.run(_cleanup())
 
 
-def _register_driver(client: TestClient) -> tuple[str, str]:
+def _fake_jpeg() -> bytes:
+    return b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01" + b"\x00" * 64
+
+
+def _file_field(name: str) -> tuple[str, io.BytesIO, str]:
+    return (name, io.BytesIO(_fake_jpeg()), "image/jpeg")
+
+
+def _register_driver(client: TestClient) -> tuple[str, str, str]:
     phone = f"+919876{uuid.uuid4().int % 100000:05d}"
     otp_req = client.post(
         f"{API}/driver/auth/request-otp",
@@ -76,88 +84,79 @@ def _register_driver(client: TestClient) -> tuple[str, str]:
     )
     assert verify.status_code == 200, verify.text
     body = api_json(verify)
-    assert body["onboarding_status"] == "step1"
-    assert body["profile_status"] is False
-    return body["access_token"], body["driver_id"]
+    assert body["onboarding"]["onboarding_status"] == "step1"
+    assert body["onboarding"]["profile_status"] is False
+    return body["access_token"], body["refresh_token"], body["driver_id"]
 
 
-def _get_city_id(client: TestClient, headers: dict[str, str]) -> str:
-    cities = client.get(f"{API}/driver/cities", headers=headers)
-    assert cities.status_code == 200, cities.text
-    data = api_json(cities)
-    assert len(data) >= 1
-    return data[0]["id"]
+def _upload_all_documents(client: TestClient, headers: dict[str, str]) -> None:
+    response = client.post(
+        f"{API}/driver/onboarding/documents",
+        headers=headers,
+        files={
+            "license": _file_field("license.jpg"),
+            "registration": _file_field("registration.jpg"),
+            "insurance": _file_field("insurance.jpg"),
+            "profile_photo": _file_field("profile.jpg"),
+        },
+    )
+    assert response.status_code == 201, response.text
+    data = api_json(response)
+    assert data["onboarding"]["onboarding_status"] == "step2"
+    assert len(data["documents"]) == 4
 
 
-def _upload_all_documents(client: TestClient, headers: dict[str, str], driver_id: str) -> None:
-    for doc_type in REQUIRED_DOCS:
-        confirm = client.post(
-            f"{API}/driver/documents/confirm",
-            headers=headers,
-            json={
-                "document_type": doc_type,
-                "file_key": f"drivers/{driver_id}/{doc_type}/test-file",
-            },
-        )
-        assert confirm.status_code == 201, confirm.text
-
-    status = client.get(f"{API}/driver/onboarding/status", headers=headers)
-    assert status.status_code == 200, status.text
-    assert api_json(status)["onboarding_status"] == "step2"
-
-
-def _submit_vehicle(client: TestClient, headers: dict[str, str], driver_id: str) -> None:
-    city_id = _get_city_id(client, headers)
-    photos = {
-        side: f"drivers/{driver_id}/vehicle-photos/{side}/test-file"
-        for side in ("front", "back", "left", "right")
-    }
-    vehicle = client.post(
+def _submit_vehicle(client: TestClient, headers: dict[str, str]) -> dict:
+    response = client.post(
         f"{API}/driver/onboarding/vehicle",
         headers=headers,
-        json={
+        data={
             "vehicle_type": "cab",
             "make": "Maruti",
             "model": "Swift",
-            "year": 2022,
+            "year": "2022",
             "plate_number": "KA01ZZ9999",
             "color": "White",
-            "city_id": city_id,
-            "photos": photos,
+            "city_slug": CITY_SLUG,
+        },
+        files={
+            "photo_front": _file_field("front.jpg"),
+            "photo_back": _file_field("back.jpg"),
+            "photo_left": _file_field("left.jpg"),
+            "photo_right": _file_field("right.jpg"),
         },
     )
-    assert vehicle.status_code == 201, vehicle.text
+    assert response.status_code == 201, response.text
+    return api_json(response)
 
 
-def _submit_driver_application(client: TestClient) -> tuple[str, str]:
-    token, driver_id = _register_driver(client)
+def _submit_driver_application(client: TestClient) -> tuple[str, str, str]:
+    token, refresh_token, driver_id = _register_driver(client)
     headers = {"Authorization": f"Bearer {token}"}
 
-    _upload_all_documents(client, headers, driver_id)
-    _submit_vehicle(client, headers, driver_id)
+    _upload_all_documents(client, headers)
+    vehicle_data = _submit_vehicle(client, headers)
 
-    submit = client.post(f"{API}/driver/onboarding/submit", headers=headers)
-    assert submit.status_code == 200, submit.text
-    submit_data = api_json(submit)
-    assert submit_data["onboarding_status"] == "application_submitted"
-    assert submit_data["profile_status"] is False
-    assert submit_data["estimated_review_time"] == "15 minutes"
-    assert submit_data["application_id"]
+    assert vehicle_data["onboarding"]["onboarding_status"] == "application_submitted"
+    assert vehicle_data["onboarding"]["profile_status"] is False
+    assert vehicle_data["onboarding"]["estimated_review_time"] == "15 minutes"
+    assert vehicle_data["onboarding"]["application_id"]
+    assert vehicle_data["submitted_at"]
 
-    return token, driver_id
+    return token, refresh_token, driver_id
 
 
 def test_admin_driver_kyc_review_flow(client: TestClient) -> None:
-    driver_token, driver_id = _submit_driver_application(client)
+    driver_token, refresh_token, driver_id = _submit_driver_application(client)
     driver_headers = {"Authorization": f"Bearer {driver_token}"}
 
-    face_confirm = client.post(
-        f"{API}/driver/onboarding/face-verification/confirm",
+    face = client.post(
+        f"{API}/driver/onboarding/face-verification",
         headers=driver_headers,
-        json={"file_key": f"drivers/{driver_id}/face-verification/test-file"},
+        files={"photo": _file_field("face.jpg")},
     )
-    assert face_confirm.status_code == 200, face_confirm.text
-    assert api_json(face_confirm)["face_verification_completed"] is True
+    assert face.status_code == 200, face.text
+    assert api_json(face)["onboarding"]["face_verification_completed"] is True
 
     blocked = client.patch(
         f"{API}/driver/status",
@@ -201,8 +200,12 @@ def test_admin_driver_kyc_review_flow(client: TestClient) -> None:
     assert approved["kyc_status"] == "approved"
     assert approved["onboarding_status"] == "kyc_approved"
 
-    status = client.get(f"{API}/driver/onboarding/status", headers=driver_headers)
-    assert api_json(status)["profile_status"] is True
+    refreshed = client.post(
+        f"{API}/driver/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refreshed.status_code == 200, refreshed.text
+    assert api_json(refreshed)["onboarding"]["profile_status"] is True
 
     go_online = client.patch(
         f"{API}/driver/status",
@@ -214,7 +217,7 @@ def test_admin_driver_kyc_review_flow(client: TestClient) -> None:
 
 
 def test_admin_reject_driver_application(client: TestClient) -> None:
-    _, driver_id = _submit_driver_application(client)
+    _, _, driver_id = _submit_driver_application(client)
 
     reject = client.post(
         f"{API}/admin/driver-applications/{driver_id}/reject",
