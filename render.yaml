@@ -18,12 +18,18 @@ services:
     branch: main
     healthCheckPath: /health
     buildCommand: pip install -e .
-    startCommand: alembic upgrade head && python -m app.db.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: alembic upgrade head && python -m app.db.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT --log-level info
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: APP_ENV
         value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_FORMAT
+        value: json
+      - key: DB_SLOW_QUERY_MS
+        value: "500"
       - key: DATABASE_URL
         fromDatabase:
           name: go4ride-postgres

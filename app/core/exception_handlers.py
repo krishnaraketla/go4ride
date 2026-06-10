@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -11,6 +12,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.exceptions import AppError
 from app.schemas.response import fail
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_http_detail(detail: Any) -> tuple[str, str, list[Any] | None]:
@@ -32,6 +35,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
         message, code, errors = _parse_http_detail(exc.detail)
+        logger.warning(
+            "app_error",
+            extra={"code": code, "status_code": exc.status_code, "message": message},
+        )
         body = fail(message, code, errors=errors)
         return JSONResponse(status_code=exc.status_code, content=body.model_dump())
 
@@ -40,6 +47,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         if isinstance(exc, AppError):
             raise exc
         message, code, errors = _parse_http_detail(exc.detail)
+        logger.warning(
+            "http_exception",
+            extra={"code": code, "status_code": exc.status_code, "message": message},
+        )
         body = fail(message, code, errors=errors)
         return JSONResponse(status_code=exc.status_code, content=body.model_dump())
 
@@ -47,5 +58,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def validation_exception_handler(
         _request: Request, exc: RequestValidationError
     ) -> JSONResponse:
+        logger.warning(
+            "validation_error",
+            extra={"error_count": len(exc.errors())},
+        )
         body = fail("Validation error", "VALIDATION_ERROR", errors=exc.errors())
         return JSONResponse(status_code=422, content=body.model_dump())

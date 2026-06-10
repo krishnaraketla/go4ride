@@ -84,7 +84,8 @@ case "$cmd" in
   run)
     ensure_venv
     [[ -f .env ]] || cp .env.example .env
-    exec uvicorn app.main:app --reload --port 8000
+    export LOG_FORMAT="${LOG_FORMAT:-text}"
+    exec uvicorn app.main:app --reload --port 8000 --log-level "${LOG_LEVEL:-debug}"
     ;;
   demo)
     ensure_venv

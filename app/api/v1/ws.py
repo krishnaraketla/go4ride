@@ -41,6 +41,8 @@ async def _subscribe_redis(ride_id: str) -> None:
                     _connections.get(ride_id, set()).discard(ws)
         except asyncio.CancelledError:
             pass
+        except Exception:
+            logger.exception("websocket_pubsub_listener_failed", extra={"ride_id": ride_id})
         finally:
             _redis_listeners.discard(ride_id)
             await pubsub.unsubscribe(f"ride:{ride_id}")
@@ -59,11 +61,16 @@ async def ride_websocket(
         payload = verify_token(token, "access")
         user_id = payload["sub"]
     except (JWTError, ValueError):
+        logger.warning("websocket_auth_failed", extra={"ride_id": str(ride_id), "code": 4001})
         await websocket.close(code=4001)
         return
 
     async with async_session_factory() as db:
         if not await ride_service.rider_owns_ride(db, UUID(user_id), ride_id):
+            logger.warning(
+                "websocket_forbidden",
+                extra={"ride_id": str(ride_id), "user_id": user_id, "code": 4003},
+            )
             await websocket.close(code=4003)
             return
 

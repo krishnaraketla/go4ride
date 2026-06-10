@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: Literal["development", "production", "test"] = "development"
+    log_level: str | None = None
+    log_format: Literal["json", "text"] | None = None
+    db_slow_query_ms: int = 500
     sqlalchemy_echo: bool | None = None
     database_url: str = "postgresql+asyncpg://go4ride:go4ride@localhost:5433/go4ride"
     redis_url: str = "redis://localhost:6379/0"
@@ -76,6 +79,18 @@ class Settings(BaseSettings):
             object.__setattr__(self, "mock_driver_enabled", self.app_env != "production")
         if self.sqlalchemy_echo is None:
             object.__setattr__(self, "sqlalchemy_echo", self.app_env == "development")
+        if self.log_level is None:
+            object.__setattr__(
+                self,
+                "log_level",
+                "DEBUG" if self.app_env in ("development", "test") else "INFO",
+            )
+        if self.log_format is None:
+            object.__setattr__(
+                self,
+                "log_format",
+                "text" if self.app_env in ("development", "test") else "json",
+            )
         return self
 
     @field_validator("cors_origins", mode="before")
