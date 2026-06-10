@@ -97,13 +97,12 @@ def _upload_all_documents(client: TestClient, headers: dict[str, str]) -> None:
             "license": _file_field("license.jpg"),
             "registration": _file_field("registration.jpg"),
             "insurance": _file_field("insurance.jpg"),
-            "profile_photo": _file_field("profile.jpg"),
         },
     )
     assert response.status_code == 201, response.text
     data = api_json(response)
     assert data["onboarding"]["onboarding_status"] == "step2"
-    assert len(data["documents"]) == 4
+    assert len(data["documents"]) == 3
 
 
 def _submit_vehicle(client: TestClient, headers: dict[str, str]) -> dict:
@@ -140,7 +139,6 @@ def _submit_driver_application(client: TestClient) -> tuple[str, str, str]:
     assert vehicle_data["onboarding"]["onboarding_status"] == "application_submitted"
     assert vehicle_data["onboarding"]["profile_status"] is False
     assert vehicle_data["onboarding"]["estimated_review_time"] == "15 minutes"
-    assert vehicle_data["onboarding"]["application_id"]
     assert vehicle_data["submitted_at"]
 
     return token, refresh_token, driver_id
@@ -187,7 +185,7 @@ def test_admin_driver_kyc_review_flow(client: TestClient) -> None:
     detail_data = api_json(detail)
     assert detail_data["driver_id"] == driver_id
     assert detail_data["onboarding_status"] == "application_submitted"
-    assert len(detail_data["documents"]) == 4
+    assert len(detail_data["documents"]) == 3
     assert detail_data["documents"][0]["view_url"]
     assert detail_data["city_name"]
     assert detail_data["vehicle_photos"]["front"]

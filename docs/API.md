@@ -887,7 +887,6 @@ Optional: `fcm_token`, `platform` (stored when push token is provided).
     "onboarding": {
       "onboarding_status": "step1",
       "profile_status": false,
-      "application_id": null,
       "kyc_rejection_reason": null,
       "face_verification_completed": false,
       "estimated_review_time": null
@@ -921,7 +920,7 @@ All submit endpoints use `multipart/form-data`. Each response includes an update
 
 Upload all KYC documents in one request. **Auth:** Bearer driver token.
 
-**Multipart fields:** `license`, `registration`, `insurance`, `profile_photo` (files; JPEG, PNG, or PDF; max 10 MB each).
+**Multipart fields:** `license`, `registration`, `insurance` (files; JPEG, PNG, or PDF; max 10 MB each).
 
 **Precondition:** `onboarding_status` is `step1` or `kyc_rejected`.
 
@@ -937,7 +936,7 @@ Submit vehicle details, operating city, and photos. Auto-submits the application
 
 **Precondition:** documents complete (`step2` or `kyc_rejected` with all 4 docs).
 
-**Response `201`:** `onboarding` (status becomes `application_submitted`, includes `application_id`, `estimated_review_time`: `"15 minutes"`), `submitted_at`.
+**Response `201`:** `onboarding` (status becomes `application_submitted`, includes `estimated_review_time`: `"15 minutes"`), `submitted_at`.
 
 ### `POST /driver/onboarding/face-verification`
 

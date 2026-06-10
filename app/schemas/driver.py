@@ -20,7 +20,6 @@ class DriverBasicProfile(BaseModel):
 class OnboardingState(BaseModel):
     onboarding_status: OnboardingStatus
     profile_status: bool
-    application_id: str | None
     kyc_rejection_reason: str | None
     face_verification_completed: bool
     estimated_review_time: str | None

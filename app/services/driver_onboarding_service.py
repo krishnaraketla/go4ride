@@ -1,6 +1,5 @@
 """Shared driver onboarding helpers."""
 
-from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -14,7 +13,6 @@ REQUIRED_DOCUMENT_TYPES: tuple[DocumentType, ...] = (
     DocumentType.license,
     DocumentType.registration,
     DocumentType.insurance,
-    DocumentType.profile_photo,
 )
 
 ESTIMATED_REVIEW_TIME = "15 minutes"
@@ -67,11 +65,6 @@ def step2_complete(profile: DriverProfile, uploaded_types: set[str]) -> bool:
     )
 
 
-def generate_application_id(driver_id: UUID) -> str:
-    year = datetime.now(timezone.utc).strftime("%Y")
-    return f"app_{year}_{str(driver_id)[:6].upper()}"
-
-
 async def get_uploaded_document_types(
     db: AsyncSession, driver_id: UUID
 ) -> set[str]:
@@ -100,7 +93,6 @@ def build_onboarding_state(profile: DriverProfile) -> OnboardingState:
     return OnboardingState(
         onboarding_status=profile.onboarding_status,
         profile_status=profile_status_for(profile),
-        application_id=profile.application_id,
         kyc_rejection_reason=profile.kyc_rejection_reason,
         face_verification_completed=profile.face_verification_completed,
         estimated_review_time=estimated_review_time_for(profile),

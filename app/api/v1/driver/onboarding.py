@@ -25,7 +25,6 @@ from app.services.driver_onboarding_service import (
     REQUIRED_DOCUMENT_TYPES,
     build_onboarding_state,
     documents_complete,
-    generate_application_id,
     get_uploaded_document_types,
     maybe_advance_to_step2,
 )
@@ -37,7 +36,6 @@ _DOC_FIELD_MAP: dict[str, DocumentType] = {
     "license": DocumentType.license,
     "registration": DocumentType.registration,
     "insurance": DocumentType.insurance,
-    "profile_photo": DocumentType.profile_photo,
 }
 
 
@@ -48,7 +46,6 @@ async def submit_documents(
     license: Annotated[UploadFile, File()],
     registration: Annotated[UploadFile, File()],
     insurance: Annotated[UploadFile, File()],
-    profile_photo: Annotated[UploadFile, File()],
 ):
     """Upload all KYC documents in one request. Advances onboarding to step2."""
     profile = await _get_profile_or_404(db, driver.id)
@@ -63,7 +60,6 @@ async def submit_documents(
         "license": license,
         "registration": registration,
         "insurance": insurance,
-        "profile_photo": profile_photo,
     }
 
     saved_docs: list[DriverDocument] = []
@@ -193,7 +189,6 @@ async def submit_vehicle(
     submitted_at = datetime.now(timezone.utc)
     profile.onboarding_status = OnboardingStatus.application_submitted
     profile.kyc_status = KycStatus.submitted
-    profile.application_id = generate_application_id(driver.id)
     profile.submitted_at = submitted_at
 
     await db.commit()
