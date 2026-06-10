@@ -8,36 +8,8 @@ from app.models.enums import DocumentStatus, DocumentType, DriverStatus, KycStat
 
 
 # ---------------------------------------------------------------------------
-# Auth
+# Auth — request bodies reuse app.schemas.auth.RequestOTPRequest / VerifyOTPRequest
 # ---------------------------------------------------------------------------
-
-class DriverRequestOtpRequest(BaseModel):
-    phone_number: str = Field(..., examples=["9876543210"], description="Mobile number without country code")
-    country_code: str = Field(..., examples=["+91"], description="Country dial code e.g. +91 for India")
-    device_id: str = Field(..., description="Unique device identifier for fraud detection")
-    platform: str = Field(..., examples=["ios", "android"], description="ios or android")
-
-
-class DriverRequestOtpResponse(BaseModel):
-    success: bool = True
-    message: str
-    session_token: str | None = None
-    otp_expires_in: int = Field(..., description="OTP validity in seconds")
-    masked_phone: str = Field(..., description="Masked phone e.g. +91 ****3210")
-    resend_allowed_after: int = Field(default=60, description="Seconds before resend is allowed")
-    is_new_user: bool
-    debug_otp: str | None = Field(default=None, description="Only present when OTP_DEBUG=true in .env")
-
-
-class DriverVerifyOtpRequest(BaseModel):
-    phone_number: str = Field(..., examples=["9876543210"], description="Mobile number without country code")
-    country_code: str = Field(..., examples=["+91"], description="Country dial code e.g. +91")
-    otp: str = Field(..., description="OTP received via SMS")
-    device_id: str = Field(..., description="Unique device identifier")
-    name: str | None = None
-    fcm_token: str | None = None
-    platform: str | None = None
-
 
 class DriverBasicProfile(BaseModel):
     name: str | None
@@ -46,7 +18,6 @@ class DriverBasicProfile(BaseModel):
 
 
 class DriverAuthResponse(BaseModel):
-    success: bool = True
     driver_id: str
     access_token: str
     refresh_token: str
@@ -65,7 +36,6 @@ class DriverRefreshRequest(BaseModel):
 
 
 class DriverRefreshResponse(BaseModel):
-    success: bool = True
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -78,8 +48,6 @@ class DriverLogoutRequest(BaseModel):
 
 
 class DriverLogoutResponse(BaseModel):
-    success: bool = True
-    message: str
     driver_status_set_to: str
     logged_out_at: datetime
 
@@ -164,7 +132,6 @@ class MenuProfileSummary(BaseModel):
 
 
 class ProfileMenuResponse(BaseModel):
-    success: bool = True
     profile: MenuProfileSummary
     inbox: MenuInbox
     wallet: MenuWallet
@@ -175,6 +142,21 @@ class ProfileMenuResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Availability / Location
 # ---------------------------------------------------------------------------
+
+class DriverStatusRequest(BaseModel):
+    status: str = Field(..., examples=["online", "offline"])
+    latitude: Decimal = Field(..., ge=-90, le=90)
+    longitude: Decimal = Field(..., ge=-180, le=180)
+    heading: float | None = Field(default=None, ge=0, le=360)
+
+
+class DriverStatusResponse(BaseModel):
+    driver_id: str
+    status: str
+    updated_at: datetime
+    dispatch_pool: str
+    message: str
+
 
 class DriverGoOnlineRequest(BaseModel):
     lat: Decimal = Field(..., ge=-90, le=90)
@@ -319,7 +301,6 @@ class VehicleResponse(BaseModel):
 
 
 class VehicleSubmitResponse(BaseModel):
-    success: bool = True
     vehicle: VehicleResponse
     onboarding_step: str = "submit_application"
 
@@ -335,7 +316,6 @@ class VerificationProgress(BaseModel):
 
 
 class SubmitApplicationResponse(BaseModel):
-    success: bool = True
     application_id: str
     onboarding_status: str
     verification_progress: VerificationProgress
@@ -394,7 +374,6 @@ class OverallProgress(BaseModel):
 
 
 class KycStatusResponse(BaseModel):
-    success: bool = True
     kyc_status: KycStatus
     overall_progress: OverallProgress
     documents: list[DocumentStatusItem]

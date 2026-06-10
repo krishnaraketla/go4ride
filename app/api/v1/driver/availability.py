@@ -1,52 +1,31 @@
 """Driver availability / status endpoints."""
 
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_driver
-from app.core.config import get_settings
 from app.core.exceptions import bad_request, not_found
 from app.db.session import get_db
 from app.models.driver import DriverProfile
 from app.models.enums import DriverStatus, KycStatus
 from app.models.user import User
-from app.schemas.driver import UpdateLocationRequest, UpdateLocationResponse
+from app.schemas.driver import (
+    DriverStatusRequest,
+    DriverStatusResponse,
+    UpdateLocationRequest,
+    UpdateLocationResponse,
+)
+from app.schemas.response import ApiResponse, ok
 from app.services import ride_live_service
 
 router = APIRouter(tags=["Driver Availability"])
 
 
-# ---------------------------------------------------------------------------
-# Schemas (inline — specific to this module)
-# ---------------------------------------------------------------------------
-
-class DriverStatusRequest(BaseModel):
-    status: str = Field(..., examples=["online", "offline"])
-    latitude: Decimal = Field(..., ge=-90, le=90)
-    longitude: Decimal = Field(..., ge=-180, le=180)
-    heading: float | None = Field(default=None, ge=0, le=360)
-
-
-class DriverStatusResponse(BaseModel):
-    success: bool = True
-    driver_id: str
-    status: str
-    updated_at: datetime
-    dispatch_pool: str
-    message: str
-
-
-# ---------------------------------------------------------------------------
-# Single PATCH /driver/status endpoint (replaces /online and /offline)
-# ---------------------------------------------------------------------------
-
-@router.patch("/driver/status", response_model=DriverStatusResponse)
+@router.patch("/driver/status", response_model=ApiResponse[DriverStatusResponse])
 async def update_driver_status(
     body: DriverStatusRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -75,28 +54,25 @@ async def update_driver_status(
         dispatch_pool = "inactive"
         message = "You are now offline"
 
-    # Always update location when status changes
     profile.current_lat = body.latitude
     profile.current_lng = body.longitude
 
     updated_at = datetime.now(timezone.utc)
     await db.commit()
 
-    return DriverStatusResponse(
-        success=True,
-        driver_id=str(driver.id),
-        status=body.status,
-        updated_at=updated_at,
-        dispatch_pool=dispatch_pool,
+    return ok(
+        DriverStatusResponse(
+            driver_id=str(driver.id),
+            status=body.status,
+            updated_at=updated_at,
+            dispatch_pool=dispatch_pool,
+            message=message,
+        ),
         message=message,
     )
 
 
-# ---------------------------------------------------------------------------
-# Location update (keep for continuous GPS pings while online)
-# ---------------------------------------------------------------------------
-
-@router.patch("/driver/location", response_model=UpdateLocationResponse)
+@router.patch("/driver/location", response_model=ApiResponse[UpdateLocationResponse])
 async def update_location(
     body: UpdateLocationRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -108,12 +84,11 @@ async def update_location(
     profile.current_lng = body.lng
     await db.commit()
     await ride_live_service.publish_location_update(db, driver.id)
-    return UpdateLocationResponse(lat=body.lat, lng=body.lng, updated=True)
+    return ok(
+        UpdateLocationResponse(lat=body.lat, lng=body.lng, updated=True),
+        message="Location updated",
+    )
 
-
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
 
 async def _get_profile_or_404(db: AsyncSession, driver_id) -> DriverProfile:
     result = await db.execute(

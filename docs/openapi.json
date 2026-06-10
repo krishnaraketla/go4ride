@@ -1271,7 +1271,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DriverRequestOtpRequest"
+                "$ref": "#/components/schemas/RequestOTPRequest"
               }
             }
           },
@@ -1283,7 +1283,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverRequestOtpResponse"
+                  "$ref": "#/components/schemas/ApiResponse_OTPSentData_"
                 }
               }
             }
@@ -1312,7 +1312,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DriverVerifyOtpRequest"
+                "$ref": "#/components/schemas/VerifyOTPRequest"
               }
             }
           },
@@ -1324,7 +1324,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverAuthResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverAuthResponse_"
                 }
               }
             }
@@ -1365,7 +1365,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverRefreshResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverRefreshResponse_"
                 }
               }
             }
@@ -1406,7 +1406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverLogoutResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverLogoutResponse_"
                 }
               }
             }
@@ -1442,7 +1442,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverProfileResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverProfileResponse_"
                 }
               }
             }
@@ -1477,7 +1477,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverProfileResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverProfileResponse_"
                 }
               }
             }
@@ -1521,7 +1521,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverProfileResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverProfileResponse_"
                 }
               }
             }
@@ -1557,7 +1557,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverStatsResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverStatsResponse_"
                 }
               }
             }
@@ -1583,7 +1583,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverEarningsResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverEarningsResponse_"
                 }
               }
             }
@@ -1610,7 +1610,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProfileMenuResponse"
+                  "$ref": "#/components/schemas/ApiResponse_ProfileMenuResponse_"
                 }
               }
             }
@@ -1647,7 +1647,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverStatusResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverStatusResponse_"
                 }
               }
             }
@@ -1694,7 +1694,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UpdateLocationResponse"
+                  "$ref": "#/components/schemas/ApiResponse_UpdateLocationResponse_"
                 }
               }
             }
@@ -1741,7 +1741,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VehicleSubmitResponse"
+                  "$ref": "#/components/schemas/ApiResponse_VehicleSubmitResponse_"
                 }
               }
             }
@@ -1778,7 +1778,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubmitApplicationResponse"
+                  "$ref": "#/components/schemas/ApiResponse_SubmitApplicationResponse_"
                 }
               }
             }
@@ -1791,13 +1791,120 @@
         ]
       }
     },
+    "/api/v1/driver/rides/search": {
+      "get": {
+        "tags": [
+          "Driver Rides"
+        ],
+        "summary": "Search Rides",
+        "description": "Search for open rides near the driver's current location.",
+        "operationId": "search_rides_api_v1_driver_rides_search_get",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 90.0,
+                  "minimum": -90.0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 180.0,
+                  "minimum": -180.0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "title": "Lng"
+            }
+          },
+          {
+            "name": "radius_km",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 50,
+                  "minimum": 0.5
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Radius Km"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_DriverRideSearchResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/driver/rides/pending": {
       "get": {
         "tags": [
           "Driver Rides"
         ],
         "summary": "Get Pending Ride",
-        "description": "Get the next ride waiting to be accepted.",
+        "description": "Deprecated: use GET /rides/search. Returns the nearest open ride within default radius.",
         "operationId": "get_pending_ride_api_v1_driver_rides_pending_get",
         "responses": {
           "200": {
@@ -1805,20 +1912,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/DriverRideResponse"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "title": "Response Get Pending Ride Api V1 Driver Rides Pending Get"
+                  "$ref": "#/components/schemas/ApiResponse_Union_DriverRideResponse__NoneType__"
                 }
               }
             }
           }
         },
+        "deprecated": true,
         "security": [
           {
             "BearerAuth": []
@@ -1840,15 +1940,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/DriverRideResponse"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "title": "Response Get Current Ride Api V1 Driver Rides Current Get"
+                  "$ref": "#/components/schemas/ApiResponse_Union_DriverRideResponse__NoneType__"
                 }
               }
             }
@@ -1891,7 +1983,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AcceptRideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_AcceptRideResponse_"
                 }
               }
             }
@@ -1939,7 +2031,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RejectRideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_RejectRideResponse_"
                 }
               }
             }
@@ -1988,7 +2080,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverRideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverRideResponse_"
                 }
               }
             }
@@ -2047,7 +2139,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverRideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverRideResponse_"
                 }
               }
             }
@@ -2095,7 +2187,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CompleteRideResponse"
+                  "$ref": "#/components/schemas/ApiResponse_CompleteRideResponse_"
                 }
               }
             }
@@ -2156,7 +2248,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverRideHistoryResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DriverRideHistoryResponse_"
                 }
               }
             }
@@ -2198,7 +2290,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DocumentUploadUrlResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DocumentUploadUrlResponse_"
                 }
               }
             }
@@ -2245,7 +2337,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DocumentResponse"
+                  "$ref": "#/components/schemas/ApiResponse_DocumentResponse_"
                 }
               }
             }
@@ -2281,7 +2373,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/KycStatusResponse"
+                  "$ref": "#/components/schemas/ApiResponse_KycStatusResponse_"
                 }
               }
             }
@@ -2292,6 +2384,274 @@
             "BearerAuth": []
           }
         ]
+      }
+    },
+    "/api/v1/admin/driver-applications": {
+      "get": {
+        "tags": [
+          "Admin \u2014 Driver KYC"
+        ],
+        "summary": "List Driver Applications",
+        "operationId": "list_driver_applications_api_v1_admin_driver_applications_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OnboardingStatus",
+              "default": "under_review"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "X-Admin-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_DriverApplicationListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/driver-applications/{driver_id}": {
+      "get": {
+        "tags": [
+          "Admin \u2014 Driver KYC"
+        ],
+        "summary": "Get Driver Application",
+        "operationId": "get_driver_application_api_v1_admin_driver_applications__driver_id__get",
+        "parameters": [
+          {
+            "name": "driver_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Driver Id"
+            }
+          },
+          {
+            "name": "X-Admin-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_DriverApplicationDetailResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/driver-applications/{driver_id}/approve": {
+      "post": {
+        "tags": [
+          "Admin \u2014 Driver KYC"
+        ],
+        "summary": "Approve Driver Application",
+        "operationId": "approve_driver_application_api_v1_admin_driver_applications__driver_id__approve_post",
+        "parameters": [
+          {
+            "name": "driver_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Driver Id"
+            }
+          },
+          {
+            "name": "X-Admin-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_DriverApplicationActionResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/driver-applications/{driver_id}/reject": {
+      "post": {
+        "tags": [
+          "Admin \u2014 Driver KYC"
+        ],
+        "summary": "Reject Driver Application",
+        "operationId": "reject_driver_application_api_v1_admin_driver_applications__driver_id__reject_post",
+        "parameters": [
+          {
+            "name": "driver_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Driver Id"
+            }
+          },
+          {
+            "name": "X-Admin-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDriverApplicationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_DriverApplicationActionResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -2516,6 +2876,80 @@
         "type": "object",
         "title": "AddressUpdateRequest"
       },
+      "AdminDocumentItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "document_type": {
+            "$ref": "#/components/schemas/DocumentType"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "view_url": {
+            "type": "string",
+            "title": "View Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "document_type",
+          "status",
+          "rejection_reason",
+          "created_at",
+          "view_url"
+        ],
+        "title": "AdminDocumentItem"
+      },
+      "ApiResponse_AcceptRideResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AcceptRideResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[AcceptRideResponse]"
+      },
       "ApiResponse_AddressResponse_": {
         "properties": {
           "success": {
@@ -2543,6 +2977,454 @@
           "message"
         ],
         "title": "ApiResponse[AddressResponse]"
+      },
+      "ApiResponse_CompleteRideResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompleteRideResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[CompleteRideResponse]"
+      },
+      "ApiResponse_DocumentResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DocumentResponse]"
+      },
+      "ApiResponse_DocumentUploadUrlResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentUploadUrlResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DocumentUploadUrlResponse]"
+      },
+      "ApiResponse_DriverApplicationActionResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverApplicationActionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverApplicationActionResponse]"
+      },
+      "ApiResponse_DriverApplicationDetailResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverApplicationDetailResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverApplicationDetailResponse]"
+      },
+      "ApiResponse_DriverApplicationListResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverApplicationListResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverApplicationListResponse]"
+      },
+      "ApiResponse_DriverAuthResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverAuthResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverAuthResponse]"
+      },
+      "ApiResponse_DriverEarningsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverEarningsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverEarningsResponse]"
+      },
+      "ApiResponse_DriverLogoutResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverLogoutResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverLogoutResponse]"
+      },
+      "ApiResponse_DriverProfileResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverProfileResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverProfileResponse]"
+      },
+      "ApiResponse_DriverRefreshResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverRefreshResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverRefreshResponse]"
+      },
+      "ApiResponse_DriverRideHistoryResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverRideHistoryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverRideHistoryResponse]"
+      },
+      "ApiResponse_DriverRideResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverRideResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverRideResponse]"
+      },
+      "ApiResponse_DriverRideSearchResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverRideSearchResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverRideSearchResponse]"
+      },
+      "ApiResponse_DriverStatsResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverStatsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverStatsResponse]"
+      },
+      "ApiResponse_DriverStatusResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverStatusResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[DriverStatusResponse]"
       },
       "ApiResponse_EmailVerificationSentData_": {
         "properties": {
@@ -2599,6 +3481,34 @@
           "message"
         ],
         "title": "ApiResponse[InsightsResponse]"
+      },
+      "ApiResponse_KycStatusResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KycStatusResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[KycStatusResponse]"
       },
       "ApiResponse_MeResponse_": {
         "properties": {
@@ -2706,6 +3616,34 @@
         ],
         "title": "ApiResponse[PaymentMethodResponse]"
       },
+      "ApiResponse_ProfileMenuResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileMenuResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[ProfileMenuResponse]"
+      },
       "ApiResponse_ProfileResponse_": {
         "properties": {
           "success": {
@@ -2789,6 +3727,34 @@
           "message"
         ],
         "title": "ApiResponse[ReferralResponse]"
+      },
+      "ApiResponse_RejectRideResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RejectRideResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[RejectRideResponse]"
       },
       "ApiResponse_ReverseGeocodeResponse_": {
         "properties": {
@@ -2930,6 +3896,34 @@
         ],
         "title": "ApiResponse[StatsResponse]"
       },
+      "ApiResponse_SubmitApplicationResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubmitApplicationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[SubmitApplicationResponse]"
+      },
       "ApiResponse_TokenResponse_": {
         "properties": {
           "success": {
@@ -2957,6 +3951,90 @@
           "message"
         ],
         "title": "ApiResponse[TokenResponse]"
+      },
+      "ApiResponse_Union_DriverRideResponse__NoneType__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverRideResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[Union[DriverRideResponse, NoneType]]"
+      },
+      "ApiResponse_UpdateLocationResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpdateLocationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[UpdateLocationResponse]"
+      },
+      "ApiResponse_VehicleSubmitResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VehicleSubmitResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "ApiResponse[VehicleSubmitResponse]"
       },
       "ApiResponse_WalletResponse_": {
         "properties": {
@@ -3375,13 +4453,237 @@
         ],
         "title": "DocumentUploadUrlResponse"
       },
+      "DriverApplicationActionResponse": {
+        "properties": {
+          "driver_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Driver Id"
+          },
+          "onboarding_status": {
+            "$ref": "#/components/schemas/OnboardingStatus"
+          },
+          "kyc_status": {
+            "$ref": "#/components/schemas/KycStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "driver_id",
+          "onboarding_status",
+          "kyc_status"
+        ],
+        "title": "DriverApplicationActionResponse"
+      },
+      "DriverApplicationDetailResponse": {
+        "properties": {
+          "driver_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Driver Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "onboarding_status": {
+            "$ref": "#/components/schemas/OnboardingStatus"
+          },
+          "kyc_status": {
+            "$ref": "#/components/schemas/KycStatus"
+          },
+          "vehicle_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VehicleType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vehicle_make": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Make"
+          },
+          "vehicle_model": {
+            "type": "string",
+            "title": "Vehicle Model"
+          },
+          "vehicle_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Year"
+          },
+          "vehicle_plate": {
+            "type": "string",
+            "title": "Vehicle Plate"
+          },
+          "vehicle_color": {
+            "type": "string",
+            "title": "Vehicle Color"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/AdminDocumentItem"
+            },
+            "type": "array",
+            "title": "Documents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "driver_id",
+          "name",
+          "phone",
+          "onboarding_status",
+          "kyc_status",
+          "vehicle_type",
+          "vehicle_make",
+          "vehicle_model",
+          "vehicle_year",
+          "vehicle_plate",
+          "vehicle_color",
+          "documents"
+        ],
+        "title": "DriverApplicationDetailResponse"
+      },
+      "DriverApplicationListItem": {
+        "properties": {
+          "driver_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Driver Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "onboarding_status": {
+            "$ref": "#/components/schemas/OnboardingStatus"
+          },
+          "kyc_status": {
+            "$ref": "#/components/schemas/KycStatus"
+          },
+          "vehicle_make": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Make"
+          },
+          "vehicle_model": {
+            "type": "string",
+            "title": "Vehicle Model"
+          },
+          "vehicle_plate": {
+            "type": "string",
+            "title": "Vehicle Plate"
+          },
+          "documents_count": {
+            "type": "integer",
+            "title": "Documents Count"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "driver_id",
+          "name",
+          "phone",
+          "onboarding_status",
+          "kyc_status",
+          "vehicle_make",
+          "vehicle_model",
+          "vehicle_plate",
+          "documents_count",
+          "submitted_at"
+        ],
+        "title": "DriverApplicationListItem"
+      },
+      "DriverApplicationListResponse": {
+        "properties": {
+          "applications": {
+            "items": {
+              "$ref": "#/components/schemas/DriverApplicationListItem"
+            },
+            "type": "array",
+            "title": "Applications"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "applications",
+          "total",
+          "page",
+          "limit"
+        ],
+        "title": "DriverApplicationListResponse"
+      },
       "DriverAuthResponse": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
           "driver_id": {
             "type": "string",
             "title": "Driver Id"
@@ -3517,15 +4819,6 @@
       },
       "DriverLogoutResponse": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          },
           "driver_status_set_to": {
             "type": "string",
             "title": "Driver Status Set To"
@@ -3538,7 +4831,6 @@
         },
         "type": "object",
         "required": [
-          "message",
           "driver_status_set_to",
           "logged_out_at"
         ],
@@ -3643,11 +4935,6 @@
       },
       "DriverRefreshResponse": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
           "access_token": {
             "type": "string",
             "title": "Access Token"
@@ -3680,112 +4967,6 @@
           "refresh_token"
         ],
         "title": "DriverRefreshResponse"
-      },
-      "DriverRequestOtpRequest": {
-        "properties": {
-          "phone_number": {
-            "type": "string",
-            "title": "Phone Number",
-            "description": "Mobile number without country code",
-            "examples": [
-              "9876543210"
-            ]
-          },
-          "country_code": {
-            "type": "string",
-            "title": "Country Code",
-            "description": "Country dial code e.g. +91 for India",
-            "examples": [
-              "+91"
-            ]
-          },
-          "device_id": {
-            "type": "string",
-            "title": "Device Id",
-            "description": "Unique device identifier for fraud detection"
-          },
-          "platform": {
-            "type": "string",
-            "title": "Platform",
-            "description": "ios or android",
-            "examples": [
-              "ios",
-              "android"
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "phone_number",
-          "country_code",
-          "device_id",
-          "platform"
-        ],
-        "title": "DriverRequestOtpRequest"
-      },
-      "DriverRequestOtpResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          },
-          "session_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Session Token"
-          },
-          "otp_expires_in": {
-            "type": "integer",
-            "title": "Otp Expires In",
-            "description": "OTP validity in seconds"
-          },
-          "masked_phone": {
-            "type": "string",
-            "title": "Masked Phone",
-            "description": "Masked phone e.g. +91 ****3210"
-          },
-          "resend_allowed_after": {
-            "type": "integer",
-            "title": "Resend Allowed After",
-            "description": "Seconds before resend is allowed",
-            "default": 60
-          },
-          "is_new_user": {
-            "type": "boolean",
-            "title": "Is New User"
-          },
-          "debug_otp": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Debug Otp",
-            "description": "Only present when OTP_DEBUG=true in .env"
-          }
-        },
-        "type": "object",
-        "required": [
-          "message",
-          "otp_expires_in",
-          "masked_phone",
-          "is_new_user"
-        ],
-        "title": "DriverRequestOtpResponse"
       },
       "DriverRideHistoryResponse": {
         "properties": {
@@ -4028,6 +5209,282 @@
         ],
         "title": "DriverRideResponse"
       },
+      "DriverRideSearchItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "pickup_lat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pickup Lat"
+          },
+          "pickup_lng": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pickup Lng"
+          },
+          "pickup_address": {
+            "type": "string",
+            "title": "Pickup Address"
+          },
+          "drop_lat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Drop Lat"
+          },
+          "drop_lng": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Drop Lng"
+          },
+          "drop_address": {
+            "type": "string",
+            "title": "Drop Address"
+          },
+          "estimated_fare": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimated Fare"
+          },
+          "final_fare": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Fare"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
+          },
+          "surge_multiplier": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Surge Multiplier"
+          },
+          "ride_type_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ride Type Slug"
+          },
+          "start_otp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Otp"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          },
+          "driver_assigned_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Assigned At"
+          },
+          "driver_arrived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Arrived At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "rider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiderSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pickup_distance_m": {
+            "type": "integer",
+            "title": "Pickup Distance M"
+          },
+          "pickup_eta_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Eta Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "pickup_lat",
+          "pickup_lng",
+          "pickup_address",
+          "drop_lat",
+          "drop_lng",
+          "drop_address",
+          "estimated_fare",
+          "final_fare",
+          "distance_km",
+          "duration_min",
+          "surge_multiplier",
+          "ride_type_slug",
+          "start_otp",
+          "requested_at",
+          "driver_assigned_at",
+          "driver_arrived_at",
+          "started_at",
+          "completed_at",
+          "cancelled_at",
+          "rider",
+          "pickup_distance_m"
+        ],
+        "title": "DriverRideSearchItem"
+      },
+      "DriverRideSearchMeta": {
+        "properties": {
+          "lat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Lng"
+          },
+          "radius_km": {
+            "type": "number",
+            "title": "Radius Km"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng",
+          "radius_km",
+          "total"
+        ],
+        "title": "DriverRideSearchMeta"
+      },
+      "DriverRideSearchResponse": {
+        "properties": {
+          "rides": {
+            "items": {
+              "$ref": "#/components/schemas/DriverRideSearchItem"
+            },
+            "type": "array",
+            "title": "Rides"
+          },
+          "search": {
+            "$ref": "#/components/schemas/DriverRideSearchMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rides",
+          "search"
+        ],
+        "title": "DriverRideSearchResponse"
+      },
       "DriverStatsResponse": {
         "properties": {
           "total_rides": {
@@ -4140,11 +5597,6 @@
       },
       "DriverStatusResponse": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
           "driver_id": {
             "type": "string",
             "title": "Driver Id"
@@ -4250,77 +5702,6 @@
           "vehicle_color"
         ],
         "title": "DriverSummary"
-      },
-      "DriverVerifyOtpRequest": {
-        "properties": {
-          "phone_number": {
-            "type": "string",
-            "title": "Phone Number",
-            "description": "Mobile number without country code",
-            "examples": [
-              "9876543210"
-            ]
-          },
-          "country_code": {
-            "type": "string",
-            "title": "Country Code",
-            "description": "Country dial code e.g. +91",
-            "examples": [
-              "+91"
-            ]
-          },
-          "otp": {
-            "type": "string",
-            "title": "Otp",
-            "description": "OTP received via SMS"
-          },
-          "device_id": {
-            "type": "string",
-            "title": "Device Id",
-            "description": "Unique device identifier"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "fcm_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fcm Token"
-          },
-          "platform": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Platform"
-          }
-        },
-        "type": "object",
-        "required": [
-          "phone_number",
-          "country_code",
-          "otp",
-          "device_id"
-        ],
-        "title": "DriverVerifyOtpRequest"
       },
       "EmailVerificationSentData": {
         "properties": {
@@ -4442,11 +5823,6 @@
       },
       "KycStatusResponse": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
           "kyc_status": {
             "$ref": "#/components/schemas/KycStatus"
           },
@@ -4693,6 +6069,18 @@
         ],
         "title": "OTPSentData"
       },
+      "OnboardingStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "documents_uploaded",
+          "vehicle_submitted",
+          "under_review",
+          "approved",
+          "rejected"
+        ],
+        "title": "OnboardingStatus"
+      },
       "OverallProgress": {
         "properties": {
           "uploaded": {
@@ -4840,11 +6228,6 @@
       },
       "ProfileMenuResponse": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
           "profile": {
             "$ref": "#/components/schemas/MenuProfileSummary"
           },
@@ -5058,6 +6441,21 @@
           "refresh_token"
         ],
         "title": "RefreshRequest"
+      },
+      "RejectDriverApplicationRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RejectDriverApplicationRequest"
       },
       "RejectRideResponse": {
         "properties": {
@@ -5461,6 +6859,17 @@
               }
             ]
           },
+          "route_polyline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route Polyline"
+          },
           "invoice_available": {
             "type": "boolean",
             "title": "Invoice Available",
@@ -5642,11 +7051,6 @@
       },
       "SubmitApplicationResponse": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
           "application_id": {
             "type": "string",
             "title": "Application Id"
@@ -6074,11 +7478,6 @@
       },
       "VehicleSubmitResponse": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": true
-          },
           "vehicle": {
             "$ref": "#/components/schemas/VehicleResponse"
           },

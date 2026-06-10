@@ -25,20 +25,21 @@ from app.schemas.driver import (
     ProfileMenuResponse,
     UpdateDriverProfileRequest,
 )
+from app.schemas.response import ApiResponse, ok
 
 router = APIRouter(prefix="/profile", tags=["Driver Profile"])
 
 
-@router.get("", response_model=DriverProfileResponse)
+@router.get("", response_model=ApiResponse[DriverProfileResponse])
 async def get_profile(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
     profile = await _get_or_404(db, driver.id)
-    return _to_response(driver, profile)
+    return ok(_to_response(driver, profile), message="Profile retrieved")
 
 
-@router.patch("", response_model=DriverProfileResponse)
+@router.patch("", response_model=ApiResponse[DriverProfileResponse])
 async def update_profile(
     body: UpdateDriverProfileRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -66,10 +67,10 @@ async def update_profile(
 
     await db.commit()
     await db.refresh(profile)
-    return _to_response(driver, profile)
+    return ok(_to_response(driver, profile), message="Profile updated")
 
 
-@router.post("", response_model=DriverProfileResponse, status_code=201)
+@router.post("", response_model=ApiResponse[DriverProfileResponse], status_code=201)
 async def create_profile(
     body: UpdateDriverProfileRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -111,40 +112,45 @@ async def create_profile(
         driver.name = body.name
     await db.commit()
     await db.refresh(profile)
-    return _to_response(driver, profile)
+    return ok(_to_response(driver, profile), message="Profile created")
 
 
-@router.get("/stats", response_model=DriverStatsResponse)
+@router.get("/stats", response_model=ApiResponse[DriverStatsResponse])
 async def get_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
     profile = await _get_or_404(db, driver.id)
-    return DriverStatsResponse(
-        total_rides=profile.total_rides or 0,
-        completed_rides=profile.total_rides or 0,
-        cancelled_rides=0,
-        acceptance_rate=1.0,
-        rating=profile.rating,
+    return ok(
+        DriverStatsResponse(
+            total_rides=profile.total_rides or 0,
+            completed_rides=profile.total_rides or 0,
+            cancelled_rides=0,
+            acceptance_rate=1.0,
+            rating=profile.rating,
+        ),
+        message="Stats retrieved",
     )
 
 
-@router.get("/earnings", response_model=DriverEarningsResponse)
+@router.get("/earnings", response_model=ApiResponse[DriverEarningsResponse])
 async def get_earnings(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
-    # TODO: aggregate from ride final_fare in a real implementation
-    return DriverEarningsResponse(
-        today=Decimal("0.00"),
-        this_week=Decimal("0.00"),
-        this_month=Decimal("0.00"),
-        total=Decimal("0.00"),
-        currency="INR",
+    return ok(
+        DriverEarningsResponse(
+            today=Decimal("0.00"),
+            this_week=Decimal("0.00"),
+            this_month=Decimal("0.00"),
+            total=Decimal("0.00"),
+            currency="INR",
+        ),
+        message="Earnings retrieved",
     )
 
 
-@router.get("/menu", response_model=ProfileMenuResponse)
+@router.get("/menu", response_model=ApiResponse[ProfileMenuResponse])
 async def get_profile_menu(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
@@ -173,19 +179,21 @@ async def get_profile_menu(
         MenuItem(key="account",         label="Account",         visible=True),
     ]
 
-    return ProfileMenuResponse(
-        success=True,
-        profile=MenuProfileSummary(
-            driver_id=str(driver.id),
-            name=driver.name,
-            avatar_url=getattr(driver, "avatar_url", None),
-            phone=driver.phone,
-            rating=rating,
+    return ok(
+        ProfileMenuResponse(
+            profile=MenuProfileSummary(
+                driver_id=str(driver.id),
+                name=driver.name,
+                avatar_url=getattr(driver, "avatar_url", None),
+                phone=driver.phone,
+                rating=rating,
+            ),
+            inbox=MenuInbox(unread_count=0),
+            wallet=MenuWallet(balance=0.0, currency="INR"),
+            subscription=MenuSubscription(),
+            menu_items=menu_items,
         ),
-        inbox=MenuInbox(unread_count=0),
-        wallet=MenuWallet(balance=0.0, currency="INR"),
-        subscription=MenuSubscription(),
-        menu_items=menu_items,
+        message="Profile menu retrieved",
     )
 
 

@@ -5,18 +5,19 @@ set -euo pipefail
 
 BASE="${BASE_URL:-http://localhost:8000}"
 API="$BASE/api/v1"
+DRIVER_PHONE="+919999000001"
 
 echo "=== Driver OTP ==="
 DRIVER_OTP_RESP=$(curl -s -X POST "$API/driver/auth/request-otp" \
   -H "Content-Type: application/json" \
-  -d '{"phone_number":"9999000001","country_code":"+91","device_id":"manual-test","platform":"android"}')
-DRIVER_OTP=$(echo "$DRIVER_OTP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['debug_otp'])")
+  -d "{\"phone\":\"$DRIVER_PHONE\"}")
+DRIVER_OTP=$(echo "$DRIVER_OTP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['debug_otp'])")
 
 echo "=== Driver login ==="
 DRIVER_AUTH=$(curl -s -X POST "$API/driver/auth/verify-otp" \
   -H "Content-Type: application/json" \
-  -d "{\"phone_number\":\"9999000001\",\"country_code\":\"+91\",\"otp\":\"$DRIVER_OTP\",\"device_id\":\"manual-test\",\"platform\":\"android\"}")
-DRIVER_TOKEN=$(echo "$DRIVER_AUTH" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+  -d "{\"phone\":\"$DRIVER_PHONE\",\"code\":\"$DRIVER_OTP\"}")
+DRIVER_TOKEN=$(echo "$DRIVER_AUTH" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['access_token'])")
 
 echo "=== Driver go online ==="
 curl -s -X PATCH "$API/driver/status" \
@@ -62,7 +63,7 @@ curl -s -X POST "$API/driver/rides/$RIDE_ID/accept" \
 echo "=== Arrived ==="
 ARRIVED=$(curl -s -X POST "$API/driver/rides/$RIDE_ID/arrived" \
   -H "Authorization: Bearer $DRIVER_TOKEN")
-START_OTP=$(echo "$ARRIVED" | python3 -c "import sys,json; print(json.load(sys.stdin)['start_otp'])")
+START_OTP=$(echo "$ARRIVED" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['start_otp'])")
 echo "Start OTP: $START_OTP"
 
 echo "=== Start ==="

@@ -17,7 +17,7 @@ PICKUP = {"lat": "12.9716", "lng": "77.5946"}
 DROP = {"lat": "12.9352", "lng": "77.6245"}
 NEAR_DRIVER = {"lat": "12.9700", "lng": "77.5900"}
 FAR_DRIVER = {"lat": "13.0500", "lng": "77.7000"}
-SEEDED_DRIVER_PHONE = "9999000001"
+SEEDED_DRIVER_PHONE = "+919999000001"
 
 
 def _integration_enabled() -> bool:
@@ -78,27 +78,16 @@ def _rider_token(client: TestClient) -> str:
 def _driver_token(client: TestClient) -> str:
     otp_req = client.post(
         f"{API}/driver/auth/request-otp",
-        json={
-            "phone_number": SEEDED_DRIVER_PHONE,
-            "country_code": "+91",
-            "device_id": "test-device",
-            "platform": "android",
-        },
+        json={"phone": SEEDED_DRIVER_PHONE},
     )
     assert otp_req.status_code == 200, otp_req.text
-    debug_otp = otp_req.json()["debug_otp"]
+    debug_otp = api_json(otp_req)["debug_otp"]
     verify = client.post(
         f"{API}/driver/auth/verify-otp",
-        json={
-            "phone_number": SEEDED_DRIVER_PHONE,
-            "country_code": "+91",
-            "otp": debug_otp,
-            "device_id": "test-device",
-            "platform": "android",
-        },
+        json={"phone": SEEDED_DRIVER_PHONE, "code": debug_otp},
     )
     assert verify.status_code == 200, verify.text
-    return verify.json()["access_token"]
+    return api_json(verify)["access_token"]
 
 
 def _create_searching_ride(client: TestClient, rider_token: str) -> str:
@@ -147,7 +136,7 @@ def test_driver_search_finds_nearby_ride(client: TestClient) -> None:
         params={**NEAR_DRIVER, "radius_km": 5},
     )
     assert search.status_code == 200, search.text
-    body = search.json()
+    body = api_json(search)
     assert body["search"]["total"] >= 1
     assert any(r["id"] == ride_id for r in body["rides"])
     assert body["rides"][0]["pickup_distance_m"] >= 0
@@ -177,7 +166,7 @@ def test_driver_search_empty_when_far(client: TestClient) -> None:
         params={**FAR_DRIVER, "radius_km": 3},
     )
     assert search.status_code == 200, search.text
-    assert search.json()["search"]["total"] == 0
+    assert api_json(search)["search"]["total"] == 0
 
 
 def test_driver_search_requires_online(client: TestClient) -> None:

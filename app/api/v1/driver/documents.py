@@ -23,12 +23,13 @@ from app.schemas.driver import (
     DocumentUploadUrlResponse,
     KycStatusResponse,
 )
+from app.schemas.response import ApiResponse, ok
 from app.services.s3_service import presigned_put_url
 
 router = APIRouter(prefix="/documents", tags=["Driver Documents"])
 
 
-@router.post("/upload-url", response_model=DocumentUploadUrlResponse)
+@router.post("/upload-url", response_model=ApiResponse[DocumentUploadUrlResponse])
 async def get_upload_url(
     body: DocumentUploadUrlRequest,
     driver: Annotated[User, Depends(get_current_driver)],
@@ -37,17 +38,19 @@ async def get_upload_url(
     file_key = f"drivers/{driver.id}/{body.document_type.value}/{secrets.token_hex(16)}"
     upload_url = presigned_put_url(file_key, body.content_type)
 
-    return DocumentUploadUrlResponse(upload_url=upload_url, file_key=file_key, expires_in=900)
+    return ok(
+        DocumentUploadUrlResponse(upload_url=upload_url, file_key=file_key, expires_in=900),
+        message="Upload URL generated",
+    )
 
 
-@router.post("/confirm", response_model=DocumentResponse, status_code=201)
+@router.post("/confirm", response_model=ApiResponse[DocumentResponse], status_code=201)
 async def confirm_upload(
     body: ConfirmDocumentUploadRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
     """After uploading to S3, call this to record the document in the DB."""
-    # Upsert: replace any previous pending document of the same type
     existing = await db.execute(
         select(DriverDocument).where(
             DriverDocument.driver_user_id == driver.id,
@@ -68,10 +71,10 @@ async def confirm_upload(
         db.add(doc)
     await db.commit()
     await db.refresh(doc)
-    return doc
+    return ok(DocumentResponse.model_validate(doc), message="Document confirmed")
 
 
-@router.get("/kyc-status", response_model=KycStatusResponse)
+@router.get("/kyc-status", response_model=ApiResponse[KycStatusResponse])
 async def get_kyc_status(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
@@ -85,13 +88,11 @@ async def get_kyc_status(
     profile = profile_result.scalar_one_or_none()
     kyc_status = profile.kyc_status if profile else KycStatus.pending
 
-    # Fetch uploaded documents keyed by type
     docs_result = await db.execute(
         select(DriverDocument).where(DriverDocument.driver_user_id == driver.id)
     )
     uploaded = {d.document_type.value: d for d in docs_result.scalars().all()}
 
-    # Define all required document types with metadata
     required_docs = [
         {
             "type": "license",
@@ -148,13 +149,15 @@ async def get_kyc_status(
     total = len(required_docs)
     percentage = int((uploaded_count / total) * 100)
 
-    return KycStatusResponse(
-        success=True,
-        kyc_status=kyc_status,
-        overall_progress=OverallProgress(
-            uploaded=uploaded_count,
-            total=total,
-            percentage=percentage,
+    return ok(
+        KycStatusResponse(
+            kyc_status=kyc_status,
+            overall_progress=OverallProgress(
+                uploaded=uploaded_count,
+                total=total,
+                percentage=percentage,
+            ),
+            documents=document_items,
         ),
-        documents=document_items,
+        message="KYC status retrieved",
     )

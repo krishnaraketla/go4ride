@@ -38,7 +38,7 @@ The Go4Ride API powers the **rider mobile app**. All business routes are prefixe
 
 See [API_endpoints.md](./API_endpoints.md) for the full Phase 2 endpoint list.
 
-Driver matching APIs are **not** included in this version. In development (`MOCK_DRIVER_ENABLED=true`), rides auto-advance through the full lifecycle using a seeded mock driver. In production (`MOCK_DRIVER_ENABLED=false`), rides stay at `searching_driver` until Phase 2.
+Driver matching APIs use the same response envelope as rider routes. In development (`MOCK_DRIVER_ENABLED=true`), rides auto-advance through the full lifecycle using a seeded mock driver. In production (`MOCK_DRIVER_ENABLED=false`), rides stay at `searching_driver` until a real driver accepts via `GET /driver/rides/search`.
 
 ---
 
@@ -821,6 +821,77 @@ curl -X POST http://localhost:8000/api/v1/rides \
     "drop_address":"Koramangala",
     "ride_type_slug":"mini"
   }'
+```
+
+---
+
+## Driver auth
+
+Base path: `/api/v1/driver/auth`
+
+Uses the same request bodies and OTP response shape as rider auth (`phone` / `code`). Driver verify returns driver-specific fields in `data` (`driver_id`, `onboarding_status`, `profile`).
+
+### `POST /driver/auth/request-otp`
+
+**Request body**
+
+```json
+{ "phone": "+919876543210" }
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "OTP sent",
+  "data": {
+    "expires_in_minutes": 10,
+    "is_new_user": false,
+    "debug_otp": "482910"
+  }
+}
+```
+
+**Errors:** `400 WRONG_ROLE` if the phone is registered as a rider.
+
+---
+
+### `POST /driver/auth/verify-otp`
+
+**Request body**
+
+```json
+{
+  "phone": "+919876543210",
+  "code": "482910",
+  "name": "Dev Driver"
+}
+```
+
+Optional: `fcm_token`, `platform` (stored when push token is provided).
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "Signed in successfully",
+  "data": {
+    "driver_id": "550e8400-e29b-41d4-a716-446655440001",
+    "access_token": "eyJ...",
+    "refresh_token": "eyJ...",
+    "token_type": "bearer",
+    "token_expires_in": 900,
+    "is_new_driver": false,
+    "onboarding_status": "complete",
+    "profile": {
+      "name": "Dev Driver",
+      "phone": "+919876543210",
+      "avatar_url": null
+    }
+  }
+}
 ```
 
 ---

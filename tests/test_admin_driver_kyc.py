@@ -60,32 +60,20 @@ def _reset_clients() -> None:
 
 
 def _register_driver(client: TestClient) -> tuple[str, str]:
-    phone_number = f"9876{uuid.uuid4().int % 100000:05d}"
+    phone = f"+919876{uuid.uuid4().int % 100000:05d}"
     otp_req = client.post(
         f"{API}/driver/auth/request-otp",
-        json={
-            "phone_number": phone_number,
-            "country_code": "+91",
-            "device_id": "admin-test-device",
-            "platform": "android",
-        },
+        json={"phone": phone},
     )
     assert otp_req.status_code == 200, otp_req.text
-    debug_otp = otp_req.json()["debug_otp"]
+    debug_otp = api_json(otp_req)["debug_otp"]
 
     verify = client.post(
         f"{API}/driver/auth/verify-otp",
-        json={
-            "phone_number": phone_number,
-            "country_code": "+91",
-            "otp": debug_otp,
-            "device_id": "admin-test-device",
-            "platform": "android",
-            "name": "Admin Test Driver",
-        },
+        json={"phone": phone, "code": debug_otp, "name": "Admin Test Driver"},
     )
     assert verify.status_code == 200, verify.text
-    body = verify.json()
+    body = api_json(verify)
     return body["access_token"], body["driver_id"]
 
 
@@ -131,7 +119,7 @@ def _submit_driver_application(client: TestClient) -> tuple[str, str]:
 
     submit = client.post(f"{API}/driver/onboarding/submit", headers=headers)
     assert submit.status_code == 200, submit.text
-    assert submit.json()["onboarding_status"] == "under_review"
+    assert api_json(submit)["onboarding_status"] == "under_review"
 
     return token, driver_id
 
@@ -186,7 +174,7 @@ def test_admin_driver_kyc_review_flow(client: TestClient) -> None:
         json={"status": "online", "latitude": "12.9700", "longitude": "77.5900"},
     )
     assert go_online.status_code == 200, go_online.text
-    assert go_online.json()["status"] == "online"
+    assert api_json(go_online)["status"] == "online"
 
 
 def test_admin_reject_driver_application(client: TestClient) -> None:
