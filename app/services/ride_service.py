@@ -175,8 +175,17 @@ async def create_ride(
             return RideResponse.model_validate_json(cached)
 
     ride_type = await fare_service.get_ride_type_by_slug(db, body.ride_type_slug)
-    route = await geo_service.get_route(
+    route_task = geo_service.get_route(
         body.pickup.lat, body.pickup.lng, body.drop.lat, body.drop.lng
+    )
+    pickup_addr_task = geo_service.resolve_address(
+        body.pickup.lat, body.pickup.lng, fallback=body.pickup_address
+    )
+    drop_addr_task = geo_service.resolve_address(
+        body.drop.lat, body.drop.lng, fallback=body.drop_address
+    )
+    route, pickup_address, drop_address = await asyncio.gather(
+        route_task, pickup_addr_task, drop_addr_task
     )
     estimated, surge, _ = await _fare_for_route(
         db, body.ride_type_slug, route.distance_km, route.duration_min
@@ -188,10 +197,10 @@ async def create_ride(
         status=RideStatus.requested,
         pickup_lat=body.pickup.lat,
         pickup_lng=body.pickup.lng,
-        pickup_address=body.pickup_address,
+        pickup_address=pickup_address,
         drop_lat=body.drop.lat,
         drop_lng=body.drop.lng,
-        drop_address=body.drop_address,
+        drop_address=drop_address,
         distance_km=route.distance_km,
         duration_min=route.duration_min,
         route_polyline=route.polyline,

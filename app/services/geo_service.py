@@ -1,5 +1,6 @@
 import logging
 import math
+import re
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -8,6 +9,10 @@ import httpx
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+_ROUTES_COMPUTE_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
+_ROUTES_FIELD_MASK_FULL = "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline"
+_ROUTES_FIELD_MASK_ETA = "routes.duration"
 
 
 @dataclass(frozen=True)
@@ -26,6 +31,22 @@ async def reverse_geocode(lat: Decimal, lng: Decimal) -> str:
     return await _mapbox_reverse(lat, lng)
 
 
+async def resolve_address(lat: Decimal, lng: Decimal, fallback: str | None = None) -> str:
+    """Resolve a formatted address from coordinates, with optional client fallback."""
+    settings = get_settings()
+    if settings.maps_provider == "mock":
+        return fallback or f"Address at {lat}, {lng}"
+    if settings.maps_provider == "google" and settings.maps_api_key:
+        address = await _google_reverse(lat, lng)
+        if not address.startswith("Address at "):
+            return address
+    elif settings.maps_provider == "mapbox" and settings.maps_api_key:
+        address = await _mapbox_reverse(lat, lng)
+        if not address.startswith("Address at "):
+            return address
+    return fallback or f"Address at {lat}, {lng}"
+
+
 async def get_route(
     pickup_lat: Decimal,
     pickup_lng: Decimal,
@@ -37,7 +58,12 @@ async def get_route(
         distance_km, duration_min = _haversine_estimate(pickup_lat, pickup_lng, drop_lat, drop_lng)
         return RouteInfo(distance_km=distance_km, duration_min=duration_min, polyline=None)
     if settings.maps_provider == "google":
-        return await _google_directions(pickup_lat, pickup_lng, drop_lat, drop_lng)
+        route = await _google_routes_compute(
+            pickup_lat, pickup_lng, drop_lat, drop_lng, field_mask=_ROUTES_FIELD_MASK_FULL
+        )
+        if route is not None:
+            return route
+        return _haversine_route(pickup_lat, pickup_lng, drop_lat, drop_lng)
     return await _mapbox_directions_route(pickup_lat, pickup_lng, drop_lat, drop_lng)
 
 
@@ -69,12 +95,11 @@ async def get_driving_eta_min(
 ) -> int | None:
     settings = get_settings()
     if settings.maps_provider == "google" and settings.maps_api_key:
-        eta = await _google_distance_matrix_eta(origin_lat, origin_lng, dest_lat, dest_lng)
-        if eta is not None:
-            return eta
-        eta = await _google_directions_eta(origin_lat, origin_lng, dest_lat, dest_lng)
-        if eta is not None:
-            return eta
+        route = await _google_routes_compute(
+            origin_lat, origin_lng, dest_lat, dest_lng, field_mask=_ROUTES_FIELD_MASK_ETA
+        )
+        if route is not None:
+            return max(1, int(route.duration_min.to_integral_value()))
     if settings.maps_provider == "mapbox" and settings.maps_api_key:
         route = await _mapbox_directions_route(origin_lat, origin_lng, dest_lat, dest_lng)
         return max(1, int(route.duration_min.to_integral_value()))
@@ -89,6 +114,14 @@ def haversine_distance_m(lat1: Decimal, lng1: Decimal, lat2: Decimal, lng2: Deci
     dlambda = math.radians(float(lng2) - float(lng1))
     a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     return int(round(2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))))
+
+
+def _parse_routes_duration_seconds(duration: str) -> int | None:
+    """Parse protobuf Duration JSON (e.g. '1349s') to seconds."""
+    match = re.fullmatch(r"(\d+)s", duration.strip())
+    if match:
+        return int(match.group(1))
+    return None
 
 
 def _haversine_eta_min(
@@ -129,99 +162,65 @@ async def _google_reverse(lat: Decimal, lng: Decimal) -> str:
     return f"Address at {lat}, {lng}"
 
 
-async def _google_directions(
-    pickup_lat: Decimal, pickup_lng: Decimal, drop_lat: Decimal, drop_lng: Decimal
-) -> RouteInfo:
+async def _google_routes_compute(
+    origin_lat: Decimal,
+    origin_lng: Decimal,
+    dest_lat: Decimal,
+    dest_lng: Decimal,
+    *,
+    field_mask: str,
+) -> RouteInfo | None:
     settings = get_settings()
+    body = {
+        "origin": {
+            "location": {"latLng": {"latitude": float(origin_lat), "longitude": float(origin_lng)}}
+        },
+        "destination": {
+            "location": {"latLng": {"latitude": float(dest_lat), "longitude": float(dest_lng)}}
+        },
+        "travelMode": "DRIVE",
+        "routingPreference": "TRAFFIC_AWARE",
+    }
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                "https://maps.googleapis.com/maps/api/directions/json",
-                params={
-                    "origin": f"{pickup_lat},{pickup_lng}",
-                    "destination": f"{drop_lat},{drop_lng}",
-                    "key": settings.maps_api_key,
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                _ROUTES_COMPUTE_URL,
+                json=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Goog-Api-Key": settings.maps_api_key,
+                    "X-Goog-FieldMask": field_mask,
                 },
             )
             data = resp.json()
-            if data.get("status") != "OK" or not data.get("routes"):
-                logger.warning("Google directions failed: %s", data.get("status"))
-                return _haversine_route(pickup_lat, pickup_lng, drop_lat, drop_lng)
+            if resp.status_code != 200 or not data.get("routes"):
+                err = data.get("error", {})
+                logger.warning(
+                    "Google Routes API failed: %s",
+                    err.get("message", err.get("status", resp.status_code)),
+                )
+                return None
             route = data["routes"][0]
-            leg = route["legs"][0]
-            distance_m = leg["distance"]["value"]
-            duration_s = leg["duration"]["value"]
-            polyline = route.get("overview_polyline", {}).get("points")
+            duration_raw = route.get("duration")
+            if not duration_raw:
+                return None
+            duration_s = _parse_routes_duration_seconds(duration_raw)
+            if duration_s is None:
+                return None
+            distance_m = route.get("distanceMeters")
+            if distance_m is None and field_mask == _ROUTES_FIELD_MASK_FULL:
+                return None
+            distance_km = (
+                Decimal(str(round(distance_m / 1000, 2))) if distance_m is not None else Decimal("0")
+            )
+            polyline = route.get("polyline", {}).get("encodedPolyline")
             return RouteInfo(
-                distance_km=Decimal(str(round(distance_m / 1000, 2))),
+                distance_km=distance_km,
                 duration_min=Decimal(str(round(duration_s / 60, 2))),
                 polyline=polyline,
             )
     except Exception:
-        logger.exception("Google directions request failed")
-        return _haversine_route(pickup_lat, pickup_lng, drop_lat, drop_lng)
-
-
-async def _google_directions_eta(
-    origin_lat: Decimal, origin_lng: Decimal, dest_lat: Decimal, dest_lng: Decimal
-) -> int | None:
-    settings = get_settings()
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                "https://maps.googleapis.com/maps/api/directions/json",
-                params={
-                    "origin": f"{origin_lat},{origin_lng}",
-                    "destination": f"{dest_lat},{dest_lng}",
-                    "departure_time": "now",
-                    "key": settings.maps_api_key,
-                },
-            )
-            data = resp.json()
-            if data.get("status") != "OK" or not data.get("routes"):
-                return None
-            leg = data["routes"][0]["legs"][0]
-            duration = leg.get("duration_in_traffic") or leg.get("duration")
-            if duration is None:
-                return None
-            return max(1, int(round(duration["value"] / 60)))
-    except Exception:
-        logger.exception("Google directions ETA request failed")
-        return None
-
-
-async def _google_distance_matrix_eta(
-    origin_lat: Decimal, origin_lng: Decimal, dest_lat: Decimal, dest_lng: Decimal
-) -> int | None:
-    settings = get_settings()
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                "https://maps.googleapis.com/maps/api/distancematrix/json",
-                params={
-                    "origins": f"{origin_lat},{origin_lng}",
-                    "destinations": f"{dest_lat},{dest_lng}",
-                    "mode": "driving",
-                    "departure_time": "now",
-                    "key": settings.maps_api_key,
-                },
-            )
-            data = resp.json()
-            if data.get("status") != "OK":
-                logger.warning("Google distance matrix failed: %s", data.get("status"))
-                return None
-            rows = data.get("rows") or []
-            if not rows or not rows[0].get("elements"):
-                return None
-            element = rows[0]["elements"][0]
-            if element.get("status") != "OK":
-                return None
-            duration = element.get("duration_in_traffic") or element.get("duration")
-            if duration is None:
-                return None
-            return max(1, int(round(duration["value"] / 60)))
-    except Exception:
-        logger.exception("Google distance matrix request failed")
+        logger.exception("Google Routes API request failed")
         return None
 
 

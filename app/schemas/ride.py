@@ -62,8 +62,6 @@ class CreateRideRequest(BaseModel):
                 {
                     "pickup": {"lat": "12.9716", "lng": "77.5946"},
                     "drop": {"lat": "12.9352", "lng": "77.6245"},
-                    "pickup_address": "MG Road, Bengaluru",
-                    "drop_address": "Koramangala, Bengaluru",
                     "ride_type_slug": "mini",
                 }
             ]
@@ -72,8 +70,8 @@ class CreateRideRequest(BaseModel):
 
     pickup: Coordinates
     drop: Coordinates
-    pickup_address: str
-    drop_address: str
+    pickup_address: str | None = None
+    drop_address: str | None = None
     ride_type_slug: str
 
 

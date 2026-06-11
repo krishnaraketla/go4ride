@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1920" height="1620" viewBox="0 0 1920 1620" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#eef2ff"/>
+    </linearGradient>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="hdrBlue" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="hdrGreen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#047857"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="hdrPurple" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="hdrOrange" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#c2410c"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="hdrRed" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#b91c1c"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+    <linearGradient id="hdrSlate" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="hdrWarn" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c3aed"/></marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ea580c"/></marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#059669"/></marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#dc2626"/></marker>
+    <style>
+      .title { font: 700 34px 'Segoe UI', Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 14px 'Segoe UI', Arial, sans-serif; fill: #64748b; }
+      .zone-label { font: 700 12px 'Segoe UI', Arial, sans-serif; letter-spacing: 1.2px; }
+      .card-hdr { font: 700 13px 'Segoe UI', Arial, sans-serif; fill: #ffffff; }
+      .line { font: 12px 'Segoe UI', Arial, sans-serif; fill: #334155; }
+      .line-sm { font: 11px 'Segoe UI', Arial, sans-serif; fill: #475569; }
+      .muted { font: 11px 'Segoe UI', Arial, sans-serif; fill: #64748b; }
+      .accent { font: 700 11px 'Segoe UI', Arial, sans-serif; fill: #6d28d9; }
+      .pill { font: 700 10px 'Segoe UI', Arial, sans-serif; fill: #1e40af; }
+      .flabel { font: 700 10px 'Segoe UI', Arial, sans-serif; fill: #475569; }
+      .infer { font: 11px 'Segoe UI', Arial, sans-serif; fill: #b45309; font-style: italic; }
+      .state-txt { font: 10px 'Segoe UI', Arial, sans-serif; fill: #312e81; font-weight: 600; }
+      .flow { stroke: #94a3b8; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .flow-ws { stroke: #7c3aed; stroke-width: 2.5; fill: none; stroke-dasharray: 7 4; marker-end: url(#arrow-purple); }
+      .flow-ext { stroke: #f97316; stroke-width: 2; fill: none; marker-end: url(#arrow-orange); }
+      .flow-data { stroke: #10b981; stroke-width: 2; fill: none; marker-end: url(#arrow-green); }
+      .flow-err { stroke: #ef4444; stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; marker-end: url(#arrow-red); }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1920" height="1620" fill="url(#bgGrad)"/>
+  <rect x="50" y="28" width="6" height="52" rx="3" fill="url(#titleGrad)"/>
+  <text class="title" x="68" y="58">Go4Ride System Architecture</text>
+  <text class="subtitle" x="68" y="82">Code-derived &#183; Modular monolith &#183; Render production &#183; v0.2.0</text>
+
+  <!-- Legend -->
+  <g filter="url(#cardShadow)">
+    <rect x="50" y="108" width="500" height="78" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="50" y="108" width="500" height="28" rx="14" fill="url(#hdrSlate)"/>
+    <rect x="50" y="122" width="500" height="14" fill="url(#hdrSlate)"/>
+    <text class="card-hdr" x="66" y="128">Legend</text>
+    <line x1="66" y1="152" x2="96" y2="152" class="flow"/><text class="line-sm" x="104" y="156">REST / HTTPS JSON</text>
+    <line x1="230" y1="152" x2="260" y2="152" class="flow-ws"/><text class="line-sm" x="268" y="156">WebSocket</text>
+    <line x1="360" y1="152" x2="390" y2="152" class="flow-ext"/><text class="line-sm" x="398" y="156">External API</text>
+    <line x1="66" y1="174" x2="96" y2="174" class="flow-data"/><text class="line-sm" x="104" y="178">DB / Cache</text>
+    <line x1="230" y1="174" x2="260" y2="174" class="flow-err"/><text class="line-sm" x="268" y="178">Error path</text>
+  </g>
+
+  <!-- CLIENTS -->
+  <rect x="40" y="210" width="1840" height="148" rx="18" fill="#f5f3ff" fill-opacity="0.55" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="10 6"/>
+  <text class="zone-label" x="58" y="232" fill="#5b21b6">CLIENTS</text>
+  <text class="muted" x="148" y="232">inferred &#8212; not in this repo</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="70" y="248" width="220" height="92" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/>
+    <rect x="70" y="248" width="220" height="30" rx="12" fill="url(#hdrPurple)"/>
+    <rect x="70" y="262" width="220" height="16" fill="url(#hdrPurple)"/>
+    <text class="card-hdr" x="86" y="268">Rider App</text>
+    <text class="line-sm" x="86" y="296">iOS / Android / Web</text>
+    <rect x="86" y="306" width="108" height="20" rx="10" fill="#ede9fe"/>
+    <text class="pill" x="96" y="320">REST + WS</text>
+  </g>
+  <g filter="url(#cardShadow)">
+    <rect x="310" y="248" width="220" height="92" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/>
+    <rect x="310" y="248" width="220" height="30" rx="12" fill="url(#hdrPurple)"/>
+    <rect x="310" y="262" width="220" height="16" fill="url(#hdrPurple)"/>
+    <text class="card-hdr" x="326" y="268">Driver App</text>
+    <text class="line-sm" x="326" y="296">iOS / Android</text>
+    <rect x="326" y="306" width="130" height="20" rx="10" fill="#ede9fe"/>
+    <text class="pill" x="336" y="320">REST + GPS pings</text>
+  </g>
+  <g filter="url(#cardShadow)">
+    <rect x="550" y="248" width="220" height="92" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/>
+    <rect x="550" y="248" width="220" height="30" rx="12" fill="url(#hdrPurple)"/>
+    <rect x="550" y="262" width="220" height="16" fill="url(#hdrPurple)"/>
+    <text class="card-hdr" x="566" y="268">Admin Console</text>
+    <text class="line-sm" x="566" y="296">Internal review tool</text>
+    <rect x="566" y="306" width="120" height="20" rx="10" fill="#ede9fe"/>
+    <text class="pill" x="576" y="320">X-Admin-Key</text>
+  </g>
+
+  <!-- RENDER CLOUD -->
+  <rect x="40" y="378" width="1840" height="860" rx="18" fill="#f0f9ff" fill-opacity="0.45" stroke="#38bdf8" stroke-width="2"/>
+  <text class="zone-label" x="58" y="400" fill="#0369a1">RENDER CLOUD</text>
+  <text class="muted" x="200" y="400">Singapore region</text>
+  <text class="infer" x="1580" y="400">inferred from render.yaml</text>
+
+  <!-- Edge -->
+  <g filter="url(#cardShadow)">
+    <rect x="70" y="418" width="300" height="78" rx="12" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <rect x="70" y="418" width="300" height="30" rx="12" fill="url(#hdrBlue)"/>
+    <rect x="70" y="432" width="300" height="16" fill="url(#hdrBlue)"/>
+    <text class="card-hdr" x="86" y="438">TLS + Load Balancer</text>
+    <text class="muted" x="86" y="466">/health &#183; /ready &#183; CORS</text>
+    <text class="muted" x="86" y="484">Uvicorn ASGI entry</text>
+  </g>
+
+  <!-- FASTAPI MONOLITH boundary -->
+  <rect x="55" y="518" width="1220" height="698" rx="16" fill="#eff6ff" fill-opacity="0.35" stroke="#3b82f6" stroke-width="2"/>
+  <text class="zone-label" x="72" y="540" fill="#1d4ed8">FASTAPI MONOLITH</text>
+  <text class="muted" x="230" y="540">Python 3.11 &#183; Uvicorn</text>
+
+  <!-- API Layer -->
+  <g filter="url(#cardShadow)">
+    <rect x="72" y="558" width="580" height="248" rx="12" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <rect x="72" y="558" width="580" height="32" rx="12" fill="url(#hdrBlue)"/>
+    <rect x="72" y="574" width="580" height="16" fill="url(#hdrBlue)"/>
+    <text class="card-hdr" x="88" y="580">API Layer &#8212; /api/v1/</text>
+    <text class="line" x="88" y="610"><tspan font-weight="600">Rider:</tspan> auth, rides, profile, wallet, addresses</text>
+    <text class="line" x="88" y="628">promo, payments, location, insights, email</text>
+    <text class="line" x="88" y="650"><tspan font-weight="600">Driver:</tspan> /driver/auth, rides, onboarding</text>
+    <text class="line" x="88" y="668">status, location, profile</text>
+    <text class="line" x="88" y="690"><tspan font-weight="600">Admin:</tspan> /admin/driver-applications</text>
+    <text class="accent" x="88" y="712">WebSocket: /ws/rides/{id}?token=JWT</text>
+    <text class="muted" x="88" y="732">Middleware: request-id, JSON logs, errors</text>
+    <text class="muted" x="88" y="750">OpenAPI at /docs &#183; /openapi.json</text>
+  </g>
+
+  <!-- Guards -->
+  <g filter="url(#cardShadow)">
+    <rect x="672" y="558" width="280" height="248" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="672" y="558" width="280" height="32" rx="12" fill="url(#hdrSlate)"/>
+    <rect x="672" y="574" width="280" height="16" fill="url(#hdrSlate)"/>
+    <text class="card-hdr" x="688" y="580">Cross-Cutting Guards</text>
+    <text class="line" x="688" y="610">JWT Bearer (HS256)</text>
+    <text class="line" x="688" y="630">python-jose tokens</text>
+    <text class="line" x="688" y="650">Role: rider | driver</text>
+    <text class="line" x="688" y="670">Admin: X-Admin-Key</text>
+    <text class="line" x="688" y="690">Idempotency-Key header</text>
+    <text class="line" x="688" y="710">Rate limit &#8594; Redis</text>
+    <text class="line" x="688" y="730">ApiResponse envelope</text>
+    <text class="muted" x="688" y="752">401 / 403 / 429 / 503</text>
+  </g>
+
+  <!-- Auth Services -->
+  <g filter="url(#cardShadow)">
+    <rect x="72" y="828" width="290" height="178" rx="12" fill="#ffffff" stroke="#a7f3d0" stroke-width="1.5"/>
+    <rect x="72" y="828" width="290" height="30" rx="12" fill="url(#hdrGreen)"/>
+    <rect x="72" y="842" width="290" height="16" fill="url(#hdrGreen)"/>
+    <text class="card-hdr" x="88" y="848">Auth Services</text>
+    <text class="line" x="88" y="876">auth_service</text>
+    <text class="line" x="88" y="894">driver_auth_service</text>
+    <text class="line" x="88" y="912">otp_service &#8594; SMS</text>
+    <text class="line" x="88" y="930">bcrypt OTP hashing</text>
+    <text class="line" x="88" y="948">JWT 15m / refresh 7d</text>
+    <text class="muted" x="88" y="970">RefreshToken in Postgres</text>
+  </g>
+
+  <!-- Ride & Dispatch -->
+  <g filter="url(#cardShadow)">
+    <rect x="382" y="828" width="310" height="178" rx="12" fill="#ffffff" stroke="#a7f3d0" stroke-width="1.5"/>
+    <rect x="382" y="828" width="310" height="30" rx="12" fill="url(#hdrGreen)"/>
+    <rect x="382" y="842" width="310" height="16" fill="url(#hdrGreen)"/>
+    <text class="card-hdr" x="398" y="848">Ride &amp; Dispatch</text>
+    <text class="line" x="398" y="876">ride_service (FSM)</text>
+    <text class="line" x="398" y="894">driver_ride_service</text>
+    <text class="line" x="398" y="912">ride_live_service</text>
+    <text class="line" x="398" y="930">fare + supply + geo</text>
+    <text class="muted" x="398" y="952">Haversine matching</text>
+    <text class="muted" x="398" y="970">Google Maps ETA/routes</text>
+  </g>
+
+  <!-- Onboarding -->
+  <g filter="url(#cardShadow)">
+    <rect x="712" y="828" width="270" height="178" rx="12" fill="#ffffff" stroke="#a7f3d0" stroke-width="1.5"/>
+    <rect x="712" y="828" width="270" height="30" rx="12" fill="url(#hdrGreen)"/>
+    <rect x="712" y="842" width="270" height="16" fill="url(#hdrGreen)"/>
+    <text class="card-hdr" x="728" y="848">Onboarding &amp; Admin</text>
+    <text class="line" x="728" y="876">driver_onboarding</text>
+    <text class="line" x="728" y="894">driver_upload</text>
+    <text class="line" x="728" y="912">admin_driver_service</text>
+    <text class="line" x="728" y="930">s3_service (boto3)</text>
+    <text class="muted" x="728" y="952">KYC docs + photos</text>
+    <text class="muted" x="728" y="970">Presigned S3 URLs</text>
+  </g>
+
+  <!-- Mock Driver -->
+  <g filter="url(#cardShadow)">
+    <rect x="1002" y="828" width="250" height="178" rx="12" fill="#ffffff" stroke="#fde68a" stroke-width="1.5"/>
+    <rect x="1002" y="828" width="250" height="30" rx="12" fill="url(#hdrWarn)"/>
+    <rect x="1002" y="842" width="250" height="16" fill="url(#hdrWarn)"/>
+    <text class="card-hdr" x="1018" y="848">Mock Driver</text>
+    <text class="line" x="1018" y="876">mock_driver_service</text>
+    <text class="line" x="1018" y="894">asyncio background</text>
+    <text class="line" x="1018" y="912">Auto-assign rides</text>
+    <text class="line" x="1018" y="930">Auto-advance status</text>
+    <text class="muted" x="1018" y="952">MOCK_DRIVER_ENABLED</text>
+    <text class="muted" x="1018" y="970">dev / demo only</text>
+  </g>
+
+  <!-- Supporting -->
+  <g filter="url(#cardShadow)">
+    <rect x="72" y="1028" width="1180" height="72" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="72" y="1028" width="1180" height="28" rx="12" fill="url(#hdrSlate)"/>
+    <rect x="72" y="1040" width="1180" height="16" fill="url(#hdrSlate)"/>
+    <text class="card-hdr" x="88" y="1048">Supporting Services</text>
+    <text class="line" x="88" y="1074">wallet &#183; profile &#183; address &#183; payment_method &#183; email &#183; settings &#183; insights</text>
+    <text class="muted" x="88" y="1092">Pydantic schemas &#183; SQLAlchemy models &#183; Alembic migrations</text>
+  </g>
+
+  <!-- Realtime -->
+  <g filter="url(#cardShadow)">
+    <rect x="72" y="1118" width="580" height="92" rx="12" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <rect x="72" y="1118" width="580" height="28" rx="12" fill="url(#hdrBlue)"/>
+    <rect x="72" y="1130" width="580" height="16" fill="url(#hdrBlue)"/>
+    <text class="card-hdr" x="88" y="1138">Real-Time Event Bus</text>
+    <text class="line" x="88" y="1164">publish_ride_event() &#8594; in-process WS (default)</text>
+    <text class="line" x="88" y="1182">Redis pub/sub when WEBSOCKET_REDIS_FANOUT=true</text>
+    <text class="muted" x="88" y="1196">ETA / polyline cache / location throttle in Redis</text>
+  </g>
+
+  <!-- DATA TIER -->
+  <rect x="1300" y="518" width="560" height="400" rx="16" fill="#ecfdf5" fill-opacity="0.4" stroke="#10b981" stroke-width="2"/>
+  <text class="zone-label" x="1318" y="540" fill="#047857">DATA TIER</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="1320" y="558" width="520" height="168" rx="12" fill="#ffffff" stroke="#a7f3d0" stroke-width="1.5"/>
+    <rect x="1320" y="558" width="520" height="30" rx="12" fill="url(#hdrGreen)"/>
+    <rect x="1320" y="572" width="520" height="16" fill="url(#hdrGreen)"/>
+    <text class="card-hdr" x="1336" y="578">PostgreSQL 16</text>
+    <text class="muted" x="1336" y="606">SQLAlchemy async &#183; asyncpg &#183; Alembic</text>
+    <text class="line-sm" x="1336" y="626">Users, OTP, RefreshToken, DriverProfile</text>
+    <text class="line-sm" x="1336" y="644">Rides, StatusEvents, RideTypes, FareRules</text>
+    <text class="line-sm" x="1336" y="662">Wallets, Promos, Addresses, Payments</text>
+    <text class="line-sm" x="1336" y="680">DriverDocuments, Cities, PartnerLeads</text>
+    <text class="muted" x="1336" y="702">Render Managed Postgres</text>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="1320" y="742" width="520" height="156" rx="12" fill="#ffffff" stroke="#a7f3d0" stroke-width="1.5"/>
+    <rect x="1320" y="742" width="520" height="30" rx="12" fill="url(#hdrGreen)"/>
+    <rect x="1320" y="756" width="520" height="16" fill="url(#hdrGreen)"/>
+    <text class="card-hdr" x="1336" y="762">Redis 7 (Key Value)</text>
+    <text class="muted" x="1336" y="790">redis.asyncio &#183; LRU &#183; no persistence</text>
+    <text class="line-sm" x="1336" y="810">OTP rate limits (otp:{phone})</text>
+    <text class="line-sm" x="1336" y="828">Idempotency keys for bookings</text>
+    <text class="line-sm" x="1336" y="846">ETA, polyline, location throttle</text>
+    <text class="line-sm" x="1336" y="864">WS pub/sub ride:{id} (optional)</text>
+  </g>
+
+  <!-- EXTERNAL -->
+  <rect x="1300" y="938" width="560" height="280" rx="16" fill="#fff7ed" fill-opacity="0.45" stroke="#fb923c" stroke-width="2"/>
+  <text class="zone-label" x="1318" y="960" fill="#c2410c">EXTERNAL APIs</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="1320" y="978" width="160" height="108" rx="12" fill="#ffffff" stroke="#fed7aa" stroke-width="1.5"/>
+    <rect x="1320" y="978" width="160" height="28" rx="12" fill="url(#hdrOrange)"/>
+    <rect x="1320" y="990" width="160" height="16" fill="url(#hdrOrange)"/>
+    <text class="card-hdr" x="1336" y="998">Google Maps</text>
+    <text class="muted" x="1336" y="1022">httpx REST</text>
+    <text class="line-sm" x="1336" y="1040">Geocode</text>
+    <text class="line-sm" x="1336" y="1056">Directions</text>
+    <text class="line-sm" x="1336" y="1072">Distance Matrix</text>
+  </g>
+  <g filter="url(#cardShadow)">
+    <rect x="1500" y="978" width="160" height="108" rx="12" fill="#ffffff" stroke="#fed7aa" stroke-width="1.5"/>
+    <rect x="1500" y="978" width="160" height="28" rx="12" fill="url(#hdrOrange)"/>
+    <rect x="1500" y="990" width="160" height="16" fill="url(#hdrOrange)"/>
+    <text class="card-hdr" x="1516" y="998">SMS OTP</text>
+    <text class="muted" x="1516" y="1022">httpx REST</text>
+    <text class="line-sm" x="1516" y="1040">Twilio</text>
+    <text class="line-sm" x="1516" y="1056">MSG91</text>
+    <text class="line-sm" x="1516" y="1072">console (dev)</text>
+  </g>
+  <g filter="url(#cardShadow)">
+    <rect x="1680" y="978" width="160" height="108" rx="12" fill="#ffffff" stroke="#fed7aa" stroke-width="1.5"/>
+    <rect x="1680" y="978" width="160" height="28" rx="12" fill="url(#hdrOrange)"/>
+    <rect x="1680" y="990" width="160" height="16" fill="url(#hdrOrange)"/>
+    <text class="card-hdr" x="1696" y="998">AWS S3</text>
+    <text class="muted" x="1696" y="1022">boto3 SDK</text>
+    <text class="line-sm" x="1696" y="1040">ap-south-1</text>
+    <text class="line-sm" x="1696" y="1056">KYC uploads</text>
+    <text class="line-sm" x="1696" y="1072">presigned GET</text>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="1320" y="1090" width="520" height="78" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="1320" y="1090" width="520" height="28" rx="12" fill="url(#hdrSlate)"/>
+    <rect x="1320" y="1102" width="520" height="16" fill="url(#hdrSlate)"/>
+    <text class="card-hdr" x="1336" y="1110">Local Dev</text>
+    <text class="line-sm" x="1336" y="1136">docker-compose: Postgres :5433, Redis :6379</text>
+    <text class="line-sm" x="1336" y="1154">App via scripts/dev.sh (not containerized)</text>
+  </g>
+
+  <!-- STATE MACHINE -->
+  <rect x="40" y="1268" width="1240" height="148" rx="16" fill="#eef2ff" fill-opacity="0.5" stroke="#6366f1" stroke-width="2"/>
+  <text class="zone-label" x="58" y="1290" fill="#4338ca">RIDE STATE MACHINE</text>
+  <text class="muted" x="250" y="1290">ride_service.py</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="58" y="1306" width="96" height="32" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.5"/>
+    <text class="state-txt" x="78" y="1327" text-anchor="middle">requested</text>
+  </g>
+  <text class="state-txt" x="162" y="1327">&#8594;</text>
+  <g filter="url(#cardShadow)">
+    <rect x="176" y="1306" width="128" height="32" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.5"/>
+    <text class="state-txt" x="240" y="1327" text-anchor="middle">searching</text>
+  </g>
+  <text class="state-txt" x="312" y="1327">&#8594;</text>
+  <g filter="url(#cardShadow)">
+    <rect x="326" y="1306" width="108" height="32" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.5"/>
+    <text class="state-txt" x="380" y="1327" text-anchor="middle">assigned</text>
+  </g>
+  <text class="state-txt" x="442" y="1327">&#8594;</text>
+  <g filter="url(#cardShadow)">
+    <rect x="456" y="1306" width="96" height="32" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.5"/>
+    <text class="state-txt" x="504" y="1327" text-anchor="middle">arrived</text>
+  </g>
+  <text class="state-txt" x="560" y="1327">&#8594;</text>
+  <g filter="url(#cardShadow)">
+    <rect x="574" y="1306" width="100" height="32" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.5"/>
+    <text class="state-txt" x="624" y="1327" text-anchor="middle">in_progress</text>
+  </g>
+  <text class="state-txt" x="682" y="1327">&#8594;</text>
+  <g filter="url(#cardShadow)">
+    <rect x="696" y="1306" width="100" height="32" rx="8" fill="#ffffff" stroke="#a5b4fc" stroke-width="1.5"/>
+    <text class="state-txt" x="746" y="1327" text-anchor="middle">completed</text>
+  </g>
+
+  <text class="line-sm" x="58" y="1362">cancelled &#8592; from searching, assigned, or arrived</text>
+  <text class="muted" x="58" y="1382">Each step &#8594; RideStatusEvent (Postgres) + publish_ride_event (WebSocket)</text>
+
+  <!-- EXCEPTIONS -->
+  <g filter="url(#cardShadow)">
+    <rect x="1300" y="1268" width="580" height="148" rx="16" fill="#ffffff" stroke="#fecaca" stroke-width="1.5"/>
+    <rect x="1300" y="1268" width="580" height="32" rx="16" fill="url(#hdrRed)"/>
+    <rect x="1300" y="1284" width="580" height="16" fill="url(#hdrRed)"/>
+    <text class="card-hdr" x="1316" y="1290">Exception Paths</text>
+    <text class="line-sm" x="1316" y="1320">400 BAD_REQUEST &#183; 401 UNAUTHORIZED &#183; 403 FORBIDDEN</text>
+    <text class="line-sm" x="1316" y="1338">404 NOT_FOUND &#183; 409 CONFLICT &#183; 429 RATE_LIMITED</text>
+    <text class="line-sm" x="1316" y="1356">503 SERVICE_UNAVAILABLE &#183; 500 INTERNAL_ERROR</text>
+    <text class="muted" x="1316" y="1378">AppError handlers + global middleware</text>
+  </g>
+
+  <!-- FLOW ARROWS -->
+  <path class="flow" d="M 180 340 L 180 418"/>
+  <path class="flow" d="M 420 340 L 220 418"/>
+  <path class="flow" d="M 660 340 L 260 418"/>
+  <text class="flabel" x="188" y="382">HTTPS</text>
+
+  <path class="flow" d="M 220 496 L 220 558"/>
+  <text class="flabel" x="228" y="530">Uvicorn</text>
+
+  <path class="flow" d="M 320 806 L 220 828"/>
+  <path class="flow" d="M 520 806 L 530 828"/>
+  <path class="flow" d="M 810 806 L 840 828"/>
+
+  <path class="flow-data" d="M 1180 920 Q 1260 760 1320 640"/>
+  <text class="flabel" x="1210" y="780">async SQL</text>
+
+  <path class="flow-data" d="M 1180 980 Q 1260 880 1320 820"/>
+  <text class="flabel" x="1210" y="900">cache</text>
+
+  <path class="flow-ext" d="M 530 1006 Q 900 1000 1360 1020"/>
+  <text class="flabel" x="880" y="990">Maps API</text>
+
+  <path class="flow-ext" d="M 210 1006 Q 800 1080 1540 1020"/>
+  <text class="flabel" x="820" y="1060">SMS</text>
+
+  <path class="flow-ext" d="M 840 1006 Q 1200 1040 1720 1020"/>
+  <text class="flabel" x="1200" y="1040">S3</text>
+
+  <path class="flow-ws" d="M 360 1118 Q 340 800 360 340"/>
+  <text class="flabel" x="348" y="720">WS</text>
+
+  <path class="flow" d="M 420 340 Q 700 380 920 418 L 920 828"/>
+  <text class="flabel" x="928" y="600">PATCH location</text>
+
+  <path class="flow-err" d="M 812 680 Q 1000 900 1310 1280"/>
+  <text class="flabel" x="1000" y="880">reject</text>
+
+  <!-- Footer -->
+  <rect x="50" y="1440" width="1820" height="44" rx="10" fill="#ffffff" fill-opacity="0.7" stroke="#e2e8f0"/>
+  <text class="muted" x="68" y="1466">No message queues &#183; No gRPC &#183; Single-process WS default &#183; Multi-instance via Redis fanout</text>
+</svg>

@@ -52,7 +52,7 @@ services:
       - key: MAPS_PROVIDER
         value: google            # set MAPS_API_KEY in dashboard; use mock locally without key
       - key: MAPS_API_KEY
-        sync: false              # set manually in Render dashboard (Geocoding, Directions, Distance Matrix)
+        sync: false              # set manually in Render dashboard (Geocoding API, Routes API)
       - key: MOCK_DRIVER_ENABLED
         value: "false"           # real driver flow; set true for auto-advance demos
       - key: DRIVER_ETA_CACHE_TTL_SEC

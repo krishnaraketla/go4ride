@@ -5,6 +5,7 @@ import pytest
 from app.services.geo_service import (
     RouteInfo,
     _haversine_estimate,
+    _parse_routes_duration_seconds,
     get_driving_eta_min,
     get_route,
     haversine_distance_m,
@@ -17,6 +18,12 @@ def test_haversine_distance_m() -> None:
     )
     assert distance_m > 0
     assert distance_m < 2000
+
+
+def test_parse_routes_duration_seconds() -> None:
+    assert _parse_routes_duration_seconds("1349s") == 1349
+    assert _parse_routes_duration_seconds("420s") == 420
+    assert _parse_routes_duration_seconds("invalid") is None
 
 
 @pytest.mark.asyncio
@@ -37,7 +44,7 @@ async def test_get_driving_eta_min_mock_provider(monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.asyncio
-async def test_google_distance_matrix_eta(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_google_routes_eta(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MAPS_PROVIDER", "google")
     monkeypatch.setenv("MAPS_API_KEY", "test-key")
     from app.core.config import get_settings
@@ -45,20 +52,10 @@ async def test_google_distance_matrix_eta(monkeypatch: pytest.MonkeyPatch) -> No
     get_settings.cache_clear()
 
     class FakeResponse:
+        status_code = 200
+
         def json(self):
-            return {
-                "status": "OK",
-                "rows": [
-                    {
-                        "elements": [
-                            {
-                                "status": "OK",
-                                "duration_in_traffic": {"value": 420},
-                            }
-                        ]
-                    }
-                ],
-            }
+            return {"routes": [{"duration": "420s"}]}
 
     class FakeClient:
         async def __aenter__(self):
@@ -67,7 +64,7 @@ async def test_google_distance_matrix_eta(monkeypatch: pytest.MonkeyPatch) -> No
         async def __aexit__(self, *args):
             return None
 
-        async def get(self, *args, **kwargs):
+        async def post(self, *args, **kwargs):
             return FakeResponse()
 
     monkeypatch.setattr("app.services.geo_service.httpx.AsyncClient", lambda **kwargs: FakeClient())
@@ -78,6 +75,52 @@ async def test_google_distance_matrix_eta(monkeypatch: pytest.MonkeyPatch) -> No
         Decimal("77.5900"),
     )
     assert eta == 7
+    get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_google_routes_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MAPS_PROVIDER", "google")
+    monkeypatch.setenv("MAPS_API_KEY", "test-key")
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "routes": [
+                    {
+                        "distanceMeters": 6800,
+                        "duration": "900s",
+                        "polyline": {"encodedPolyline": "abc123"},
+                    }
+                ]
+            }
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr("app.services.geo_service.httpx.AsyncClient", lambda **kwargs: FakeClient())
+    route = await get_route(
+        Decimal("12.9716"),
+        Decimal("77.5946"),
+        Decimal("12.9352"),
+        Decimal("77.6245"),
+    )
+    assert isinstance(route, RouteInfo)
+    assert route.distance_km == Decimal("6.8")
+    assert route.duration_min == Decimal("15")
+    assert route.polyline == "abc123"
     get_settings.cache_clear()
 
 
