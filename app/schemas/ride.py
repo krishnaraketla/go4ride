@@ -111,6 +111,7 @@ class RideResponse(BaseModel):
     driver: DriverSummary | None = None
     route_polyline: str | None = None
     invoice_available: bool = False
+    start_otp: str | None = None
 
 
 class RepeatRideResponse(BaseModel):
@@ -128,6 +129,7 @@ class RideStatusResponse(BaseModel):
     driver: DriverSummary | None = None
     route_polyline: str | None = None
     leg_polyline: str | None = None
+    start_otp: str | None = None
 
 
 class RideHistoryResponse(BaseModel):

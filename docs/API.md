@@ -195,13 +195,15 @@ requested → searching_driver → driver_assigned → driver_arrived → in_pro
 | `requested`        | Ride record created                                                                           |
 | `searching_driver` | Set immediately after create                                                                  |
 | `driver_assigned`  | Mock driver assigned (dev) or real match (Phase 2)                                            |
-| `driver_arrived`   | Driver at pickup                                                                              |
-| `in_progress`      | Trip started; `start_otp` set on ride                                                         |
+| `driver_arrived`   | Driver at pickup; rider app shows `start_otp`                                                  |
+| `in_progress`      | Trip started (driver verified OTP via `POST /driver/rides/{id}/start`)                         |
 | `completed`        | Trip ended; `final_fare` set                                                                  |
 | `cancelled`        | Rider cancelled while `requested`, `searching_driver`, `driver_assigned`, or `driver_arrived` |
 
 
 When a driver is assigned, `RideResponse`, `RideStatusResponse`, and WebSocket events include a `driver` object (`id`, `name`, `phone`, vehicle fields, optional `lat`/`lng`, `eta_min`).
+
+When status is `driver_arrived`, rider responses and WebSocket status events also include `start_otp` (6-digit string). The rider reads it aloud; the driver enters it in the driver app to start the trip. `start_otp` is `null` / omitted for all other statuses.
 
 ---
 
@@ -568,7 +570,10 @@ Create a ride booking.
   "started_at": null,
   "completed_at": null,
   "cancelled_at": null,
-  "driver": null
+  "driver": null,
+  "route_polyline": null,
+  "invoice_available": false,
+  "start_otp": null
 }
 ```
 
@@ -607,8 +612,8 @@ Lightweight status check.
 ```json
 {
   "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-  "status": "driver_assigned",
-  "message": "Driver assigned",
+  "status": "driver_arrived",
+  "message": "Driver arrived at pickup",
   "driver": {
     "id": "550e8400-e29b-41d4-a716-446655440001",
     "name": "Dev Driver",
@@ -618,10 +623,15 @@ Lightweight status check.
     "vehicle_color": "white",
     "lat": "12.9700",
     "lng": "77.5900",
-    "eta_min": 5
-  }
+    "eta_min": 0
+  },
+  "route_polyline": "encoded_pickup_to_drop_polyline",
+  "leg_polyline": "encoded_driver_to_pickup_polyline",
+  "start_otp": "482910"
 }
 ```
+
+`start_otp` is only present when `status` is `driver_arrived`.
 
 ---
 
@@ -702,17 +712,18 @@ ws://localhost:8000/api/v1/ws/rides/{ride_id}?token=<access_token>
 
 In dev with mock driver enabled, events usually arrive in lifecycle order: `requested` → `searching_driver` → `driver_assigned` → `driver_arrived` → `in_progress` → `completed`. `cancelled` is emitted if the rider cancels while still cancellable (before `in_progress`). See [Ride status lifecycle](#ride-status-lifecycle).
 
-Example (`driver_assigned`):
+Example (`driver_arrived` — includes `start_otp` for the rider app):
 
 ```json
 {
   "type": "status",
   "ride_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-  "status": "driver_assigned",
-  "message": "Driver assigned",
+  "status": "driver_arrived",
+  "message": "Driver arrived at pickup",
   "created_at": "2026-05-20T10:30:05.123456+00:00",
   "route_polyline": "encoded_pickup_to_drop_polyline",
   "leg_polyline": "encoded_driver_to_pickup_polyline",
+  "start_otp": "482910",
   "driver": {
     "id": "550e8400-e29b-41d4-a716-446655440001",
     "name": "Dev Driver",

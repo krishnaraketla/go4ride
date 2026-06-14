@@ -31,6 +31,13 @@ _ACTIVE_DRIVER_STATUSES = {
 }
 
 
+def rider_visible_start_otp(ride: Ride) -> str | None:
+    """Trip-start OTP for the rider app — only while waiting at pickup."""
+    if ride.status == RideStatus.driver_arrived and ride.start_otp:
+        return ride.start_otp
+    return None
+
+
 async def get_active_ride_for_driver(db: AsyncSession, driver_id: UUID) -> Ride | None:
     result = await db.execute(
         select(Ride)
@@ -142,6 +149,9 @@ async def build_status_payload(
         "created_at": created_at.isoformat(),
         "route_polyline": ride.route_polyline,
     }
+    start_otp = rider_visible_start_otp(ride)
+    if start_otp is not None:
+        payload["start_otp"] = start_otp
     if status in {
         RideStatus.driver_assigned,
         RideStatus.driver_arrived,

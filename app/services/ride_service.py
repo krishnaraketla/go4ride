@@ -255,6 +255,7 @@ async def get_ride_status(db: AsyncSession, rider: User, ride_id: UUID) -> RideS
         driver=driver,
         route_polyline=ride.route_polyline,
         leg_polyline=leg_polyline,
+        start_otp=ride_live_service.rider_visible_start_otp(ride),
     )
 
 
@@ -412,7 +413,7 @@ async def _transition_status(
         ride.driver_assigned_at = now
     elif status == RideStatus.driver_arrived:
         ride.driver_arrived_at = now
-        # Generate OTP now so driver can show it to the rider before the trip starts
+        # Generate OTP for the rider app; driver enters what the rider reads aloud
         ride.start_otp = f"{secrets.randbelow(1_000_000):06d}"
     elif status == RideStatus.in_progress:
         ride.started_at = now
@@ -451,4 +452,5 @@ async def _to_ride_response(db: AsyncSession, ride: Ride) -> RideResponse:
         driver=driver,
         route_polyline=ride.route_polyline,
         invoice_available=_invoice_available(ride),
+        start_otp=ride_live_service.rider_visible_start_otp(ride),
     )

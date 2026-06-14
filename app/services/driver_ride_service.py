@@ -157,7 +157,7 @@ async def arrived_at_pickup(db: AsyncSession, driver: User, ride_id: UUID) -> Dr
 async def start_ride(
     db: AsyncSession, driver: User, ride_id: UUID, otp: str
 ) -> DriverRideResponse:
-    """Driver starts the ride after verifying the rider's OTP."""
+    """Driver starts the ride after the rider reads the trip-start OTP from their app."""
     await _assert_driver_owns_ride(db, driver.id, ride_id)
 
     result = await db.execute(
