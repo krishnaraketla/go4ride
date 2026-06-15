@@ -99,7 +99,8 @@ update these via the Render dashboard's **Environment** tab for
 | `MAPS_API_KEY`         | Google server API key                  | Enable **Geocoding**, **Directions**, and **Distance Matrix** APIs |
 | `MOCK_DRIVER_ENABLED`  | `false` (default in blueprint)         | Real driver accept/complete flow; set `true` for auto-advance demos |
 | `DRIVER_ETA_CACHE_TTL_SEC` | `30`                             | Cache Google ETA per ride to limit API calls                       |
-| `CORS_ORIGINS`         | JSON array of your frontend origins    | `["https://app.example.com"]` — replace the permissive `["*"]`     |
+| `CLEAR_RIDES_ON_STARTUP`         | `false` (default in blueprint: `true`) | Stop wiping rides on every deploy                                |
+| `CLEAR_OTP_LIMITS_ON_STARTUP`    | `false`                                | Stop resetting demo OTP rate limits on deploy                    |
 
 After changing env vars, Render auto-redeploys the service.
 

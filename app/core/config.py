@@ -60,6 +60,8 @@ class Settings(BaseSettings):
 
     admin_api_key: str = ""
     clear_rides_on_startup: bool = True
+    clear_otp_limits_on_startup: bool = False
+    clear_otp_limits_phones: list[str] = Field(default_factory=lambda: ["+919999000001"])
     aws_region: str = "ap-south-1"
     s3_bucket: str = "go4ride-kyc"
     max_upload_size_mb: int = 10
@@ -106,6 +108,18 @@ class Settings(BaseSettings):
                 return json.loads(v)
             except json.JSONDecodeError:
                 return [origin.strip() for origin in v.split(",")]
+        return v  # type: ignore[return-value]
+
+    @field_validator("clear_otp_limits_phones", mode="before")
+    @classmethod
+    def parse_clear_otp_limits_phones(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+            except json.JSONDecodeError:
+                return [phone.strip() for phone in v.split(",") if phone.strip()]
+            if isinstance(parsed, list):
+                return [str(phone) for phone in parsed]
         return v  # type: ignore[return-value]
 
 
