@@ -10,7 +10,8 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.core.exceptions import bad_request, forbidden, not_found
 from app.models.driver import DriverProfile
-from app.models.enums import DriverStatus, RideStatus
+from app.models.driver_ride_action import DriverRideAction
+from app.models.enums import DriverRideActionType, DriverStatus, RideStatus
 from app.models.ride import Ride
 from app.models.user import User
 from app.schemas.driver import (
@@ -20,8 +21,8 @@ from app.schemas.driver import (
     DriverRideSearchResponse,
     RiderSummary,
 )
-from app.services import geo_service
-from app.services.ride_service import TERMINAL_STATUSES, transition_ride
+from app.services import geo_service, ride_rating_service
+from app.services.ride_service import _history_status_clause, transition_ride
 
 # Statuses where the driver is actively managing a ride
 _ACTIVE_STATUSES = {
@@ -124,6 +125,13 @@ async def accept_ride(db: AsyncSession, driver: User, ride_id: UUID) -> DriverRi
 
     # Mark driver as on-ride
     profile.driver_status = DriverStatus.on_ride
+    db.add(
+        DriverRideAction(
+            driver_id=driver.id,
+            ride_id=ride_id,
+            action=DriverRideActionType.accepted,
+        )
+    )
     await db.flush()
 
     return await _to_driver_ride_response(db, ride)
@@ -139,6 +147,14 @@ async def reject_ride(db: AsyncSession, driver: User, ride_id: UUID) -> dict:
         raise not_found("Ride not found", "RIDE_NOT_FOUND")
     if ride.status != RideStatus.searching_driver:
         raise bad_request("Ride is no longer available", "RIDE_NOT_AVAILABLE")
+    db.add(
+        DriverRideAction(
+            driver_id=driver.id,
+            ride_id=ride_id,
+            action=DriverRideActionType.rejected,
+        )
+    )
+    await db.flush()
     return {"ride_id": ride_id, "status": ride.status.value, "message": "Ride rejected"}
 
 
@@ -221,12 +237,13 @@ async def get_driver_ride_history(
     driver: User,
     page: int = 1,
     limit: int = 20,
+    status: str | None = "terminal",
 ) -> tuple[list[DriverRideResponse], int]:
     offset = (page - 1) * limit
-    conditions = [
-        Ride.driver_id == driver.id,
-        Ride.status.in_(TERMINAL_STATUSES),
-    ]
+    conditions = [Ride.driver_id == driver.id]
+    status_clause = _history_status_clause(status)
+    if status_clause is not None:
+        conditions.append(status_clause)
     count_result = await db.execute(
         select(func.count()).select_from(Ride).where(*conditions)
     )
@@ -235,12 +252,15 @@ async def get_driver_ride_history(
         select(Ride)
         .where(*conditions)
         .options(selectinload(Ride.ride_type))
-        .order_by(Ride.completed_at.desc())
+        .order_by(func.coalesce(Ride.completed_at, Ride.cancelled_at).desc())
         .offset(offset)
         .limit(limit)
     )
     rides = result.scalars().all()
-    responses = [await _to_driver_ride_response(db, r) for r in rides]
+    ratings_map = await ride_rating_service.get_ratings_for_rides(db, [r.id for r in rides])
+    responses = [
+        await _to_driver_ride_response(db, r, ratings_map.get(r.id)) for r in rides
+    ]
     return responses, total
 
 
@@ -276,9 +296,14 @@ async def _rider_summary(db: AsyncSession, rider_id: UUID) -> RiderSummary | Non
     return RiderSummary(id=user.id, name=user.name, phone=user.phone)
 
 
-async def _to_driver_ride_response(db: AsyncSession, ride: Ride) -> DriverRideResponse:
+async def _to_driver_ride_response(
+    db: AsyncSession,
+    ride: Ride,
+    rider_rating: int | None = None,
+) -> DriverRideResponse:
     slug = ride.ride_type.slug if ride.ride_type else None
     rider = await _rider_summary(db, ride.rider_id)
+    earnings = ride.final_fare if ride.status == RideStatus.completed else None
     return DriverRideResponse(
         id=ride.id,
         status=ride.status.value,
@@ -302,4 +327,6 @@ async def _to_driver_ride_response(db: AsyncSession, ride: Ride) -> DriverRideRe
         completed_at=ride.completed_at,
         cancelled_at=ride.cancelled_at,
         rider=rider,
+        rider_rating=rider_rating,
+        earnings=earnings,
     )

@@ -74,3 +74,13 @@ class VehiclePhotoSide(str, enum.Enum):
     back = "back"
     left = "left"
     right = "right"
+
+
+class RaterRole(str, enum.Enum):
+    rider = "rider"
+    driver = "driver"
+
+
+class DriverRideActionType(str, enum.Enum):
+    accepted = "accepted"
+    rejected = "rejected"

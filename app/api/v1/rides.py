@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_rider, get_db, get_idempotency_key
 from app.models.user import User
+from app.schemas.driver import RideRatingResponse, SubmitRideRatingRequest
 from app.schemas.invoice import InvoiceResponse
 from app.schemas.response import ApiResponse, ok
 from app.schemas.ride import (
@@ -17,7 +18,7 @@ from app.schemas.ride import (
     RideResponse,
     RideStatusResponse,
 )
-from app.services import ride_service
+from app.services import ride_rating_service, ride_service
 
 router = APIRouter(tags=["rides"])
 
@@ -123,3 +124,27 @@ async def ride_invoice(
 
     invoice = await ride_service.get_ride_invoice(db, rider, ride_id)
     return ok(invoice, message="Invoice retrieved")
+
+
+@router.post("/rides/{ride_id}/rate", response_model=ApiResponse[RideRatingResponse], include_in_schema=False)
+async def rate_driver(
+    ride_id: UUID,
+    body: SubmitRideRatingRequest,
+    rider: Annotated[User, Depends(get_current_rider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Rider rates the driver after a completed trip."""
+
+    ride = await ride_rating_service.get_ride_for_rating(db, ride_id, rider)
+    rating = await ride_rating_service.submit_rating(
+        db, ride, rider, body.score, body.comment
+    )
+    await db.commit()
+    return ok(
+        RideRatingResponse(
+            ride_id=str(ride_id),
+            score=rating.score,
+            message="Rating submitted",
+        ),
+        message="Rating submitted",
+    )

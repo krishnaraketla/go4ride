@@ -99,7 +99,10 @@ class DriverStatsResponse(BaseModel):
     completed_rides: int
     cancelled_rides: int
     acceptance_rate: float
+    completion_rate: float
     rating: Decimal | None
+    active_hours: float
+    online_hours: float
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +221,8 @@ class DriverRideResponse(BaseModel):
     completed_at: datetime | None
     cancelled_at: datetime | None
     rider: RiderSummary | None
+    rider_rating: int | None = None
+    earnings: Decimal | None = None
 
     model_config = {"from_attributes": True}
 
@@ -271,6 +276,27 @@ class DriverRideSearchItem(DriverRideResponse):
 class DriverRideSearchResponse(BaseModel):
     rides: list[DriverRideSearchItem]
     search: DriverRideSearchMeta
+
+
+class DriverDashboardResponse(BaseModel):
+    today_earnings: Decimal
+    today_trips: int
+    online_hours_today: float
+    rating: Decimal | None
+    driver_status: str
+    current_ride: DriverRideResponse | None
+    currency: str
+
+
+class SubmitRideRatingRequest(BaseModel):
+    score: int = Field(..., ge=1, le=5)
+    comment: str | None = None
+
+
+class RideRatingResponse(BaseModel):
+    ride_id: str
+    score: int
+    message: str
 
 
 # ---------------------------------------------------------------------------

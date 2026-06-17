@@ -18,6 +18,8 @@ from app.api.v1.admin import drivers as admin_drivers
 from app.api.v1.driver import (
     auth as driver_auth,
     availability as driver_availability,
+    dashboard as driver_dashboard,
+    insights as driver_insights,
     onboarding as driver_onboarding,
     profile as driver_profile,
     rides as driver_rides,
@@ -46,6 +48,8 @@ api_router.include_router(driver_profile.router, prefix=_driver_prefix)
 api_router.include_router(driver_availability.router)           # already has /driver prefix internally
 api_router.include_router(driver_onboarding.router, prefix=_driver_prefix)
 api_router.include_router(driver_rides.router, prefix=_driver_prefix)
+api_router.include_router(driver_insights.router, prefix=_driver_prefix)
+api_router.include_router(driver_dashboard.router, prefix=_driver_prefix)
 
 # Admin routes (internal — X-Admin-Key header)
 api_router.include_router(admin_drivers.router, prefix="/admin")

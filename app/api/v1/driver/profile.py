@@ -1,7 +1,6 @@
-from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -26,6 +25,7 @@ from app.schemas.driver import (
     UpdateDriverProfileRequest,
 )
 from app.schemas.response import ApiResponse, ok
+from app.services import driver_earnings_service, driver_stats_service
 
 router = APIRouter(prefix="/profile", tags=["Driver Profile"])
 
@@ -99,18 +99,10 @@ async def create_profile(
 async def get_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
+    period: Literal["all", "daily", "weekly", "monthly"] = Query("weekly"),
 ):
-    profile = await _get_or_404(db, driver.id)
-    return ok(
-        DriverStatsResponse(
-            total_rides=profile.total_rides or 0,
-            completed_rides=profile.total_rides or 0,
-            cancelled_rides=0,
-            acceptance_rate=1.0,
-            rating=profile.rating,
-        ),
-        message="Stats retrieved",
-    )
+    stats = await driver_stats_service.get_driver_stats(db, driver.id, period=period)
+    return ok(DriverStatsResponse(**stats), message="Stats retrieved")
 
 
 @router.get("/earnings", response_model=ApiResponse[DriverEarningsResponse])
@@ -118,13 +110,14 @@ async def get_earnings(
     db: Annotated[AsyncSession, Depends(get_db)],
     driver: Annotated[User, Depends(get_current_driver)],
 ):
+    summary = await driver_earnings_service.get_earnings_summary(db, driver.id)
     return ok(
         DriverEarningsResponse(
-            today=Decimal("0.00"),
-            this_week=Decimal("0.00"),
-            this_month=Decimal("0.00"),
-            total=Decimal("0.00"),
-            currency="INR",
+            today=summary["today"],
+            this_week=summary["this_week"],
+            this_month=summary["this_month"],
+            total=summary["total"],
+            currency=summary["currency"],
         ),
         message="Earnings retrieved",
     )

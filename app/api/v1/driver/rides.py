@@ -16,10 +16,12 @@ from app.schemas.driver import (
     DriverRideResponse,
     DriverRideSearchResponse,
     RejectRideResponse,
+    RideRatingResponse,
     StartRideRequest,
+    SubmitRideRatingRequest,
 )
 from app.schemas.response import ApiResponse, ok
-from app.services import driver_ride_service
+from app.services import driver_ride_service, ride_rating_service
 
 router = APIRouter(prefix="/rides", tags=["Driver Rides"])
 
@@ -145,9 +147,37 @@ async def ride_history(
     driver: Annotated[User, Depends(get_current_driver)],
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
+    status: str = Query(
+        "terminal",
+        description="terminal (default), all, completed, or cancelled",
+    ),
 ):
-    rides, total = await driver_ride_service.get_driver_ride_history(db, driver, page, limit)
+    rides, total = await driver_ride_service.get_driver_ride_history(
+        db, driver, page, limit, status
+    )
     return ok(
         DriverRideHistoryResponse(rides=rides, total=total, page=page, limit=limit),
         message="Ride history retrieved",
+    )
+
+
+@router.post("/{ride_id}/rate", response_model=ApiResponse[RideRatingResponse])
+async def rate_rider(
+    ride_id: UUID,
+    body: SubmitRideRatingRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    driver: Annotated[User, Depends(get_current_driver)],
+):
+    ride = await ride_rating_service.get_ride_for_rating(db, ride_id, driver)
+    rating = await ride_rating_service.submit_rating(
+        db, ride, driver, body.score, body.comment
+    )
+    await db.commit()
+    return ok(
+        RideRatingResponse(
+            ride_id=str(ride_id),
+            score=rating.score,
+            message="Rating submitted",
+        ),
+        message="Rating submitted",
     )

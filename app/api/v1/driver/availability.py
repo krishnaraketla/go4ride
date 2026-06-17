@@ -20,7 +20,7 @@ from app.schemas.driver import (
     UpdateLocationResponse,
 )
 from app.schemas.response import ApiResponse, ok
-from app.services import ride_live_service
+from app.services import driver_session_service, ride_live_service
 
 router = APIRouter(tags=["Driver Availability"])
 
@@ -45,12 +45,14 @@ async def update_driver_status(
         if profile.driver_status == DriverStatus.on_ride:
             raise bad_request("Cannot change status while on a ride", "ON_RIDE")
         profile.driver_status = DriverStatus.online
+        await driver_session_service.open_session(db, driver.id)
         dispatch_pool = "active"
         message = "You are now online and accepting rides"
     else:
         if profile.driver_status == DriverStatus.on_ride:
             raise bad_request("Cannot go offline while on a ride", "ON_RIDE")
         profile.driver_status = DriverStatus.offline
+        await driver_session_service.close_session(db, driver.id)
         dispatch_pool = "inactive"
         message = "You are now offline"
 

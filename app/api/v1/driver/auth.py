@@ -21,7 +21,7 @@ from app.schemas.driver import (
     DriverRefreshResponse,
 )
 from app.schemas.response import ApiResponse, ok
-from app.services import driver_auth_service
+from app.services import driver_auth_service, driver_session_service
 from app.services.auth_service import logout, refresh_tokens
 from app.services.driver_onboarding_service import build_onboarding_state
 
@@ -136,6 +136,7 @@ async def driver_logout(
     profile = profile_result.scalar_one_or_none()
     if profile is not None:
         profile.driver_status = DriverStatus.offline
+        await driver_session_service.close_session(db, driver.id)
 
     logged_out_at = datetime.now(timezone.utc)
     await db.commit()
