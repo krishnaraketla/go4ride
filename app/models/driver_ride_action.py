@@ -17,7 +17,7 @@ class DriverRideAction(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), index=True
     )
     ride_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rides.id"), index=True
+        UUID(as_uuid=True), ForeignKey("rides.id", ondelete="CASCADE"), index=True
     )
     action: Mapped[DriverRideActionType] = mapped_column(Enum(DriverRideActionType))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

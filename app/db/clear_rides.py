@@ -9,13 +9,17 @@ from sqlalchemy import delete, update
 from app.core.config import get_settings
 from app.db.session import async_session_factory
 from app.models.driver import DriverProfile
+from app.models.driver_ride_action import DriverRideAction
 from app.models.enums import DriverStatus
 from app.models.ride import Ride, RideStatusEvent
+from app.models.ride_rating import RideRating
 
 
 async def clear_rides() -> tuple[int, int, int]:
     """Delete all rides and status events; reset drivers stuck on_ride."""
     async with async_session_factory() as db:
+        await db.execute(delete(RideRating))
+        await db.execute(delete(DriverRideAction))
         events_result = await db.execute(delete(RideStatusEvent))
         rides_result = await db.execute(delete(Ride))
         drivers_result = await db.execute(
