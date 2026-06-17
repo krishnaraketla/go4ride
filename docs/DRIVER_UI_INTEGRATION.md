@@ -210,19 +210,81 @@ sequenceDiagram
 
 ---
 
-## 8. Related endpoints
+## 8. Live navigation (polylines & WebSocket)
+
+During an active trip, the driver map uses the same polyline model as the rider app.
+
+| Polyline | Meaning | When available |
+|----------|---------|----------------|
+| `route_polyline` | Pickup → drop (full trip route) | After rider books (`searching_driver` onward) |
+| `leg_polyline` | Driver → pickup, then driver → drop when `in_progress` | After accept, while driver has GPS and ride is active |
+
+### 8.1 REST (poll fallback)
+
+| Endpoint | Polylines |
+|----------|-----------|
+| `GET /api/v1/driver/rides/current` | `route_polyline`, `leg_polyline` (refreshes leg) |
+| `GET /api/v1/driver/rides/{ride_id}/status` | `route_polyline`, `leg_polyline`, `start_otp` |
+| `POST .../arrived`, `POST .../start` | Full `DriverRideResponse` includes both polylines |
+| `GET /api/v1/driver/rides/search` | `route_polyline` only (no leg until accepted) |
+| `GET /api/v1/driver/rides/history` | `route_polyline` if stored; `leg_polyline` usually null |
+
+Decode polylines with the **Google encoded polyline** format (same as rider app).
+
+### 8.2 WebSocket (preferred)
+
+**`WS /api/v1/ws/rides/{ride_id}?token={driver_access_token}`**
+
+Assigned drivers may connect (same channel as the rider). Events include `route_polyline` and `leg_polyline`:
+
+```json
+{
+  "type": "status",
+  "ride_id": "...",
+  "status": "driver_assigned",
+  "route_polyline": "encoded_pickup_to_drop",
+  "leg_polyline": "encoded_driver_to_pickup"
+}
+```
+
+```json
+{
+  "type": "location_update",
+  "ride_id": "...",
+  "status": "in_progress",
+  "route_polyline": "...",
+  "leg_polyline": "...",
+  "driver": { "lat": "...", "lng": "...", "eta_min": 5 },
+  "updated_at": "..."
+}
+```
+
+Leg updates are published when the driver sends **`PATCH /api/v1/driver/location`** while on a trip.
+
+### 8.3 Recommended client flow
+
+1. After accept → `GET /driver/rides/current` or connect WebSocket.
+2. Render `route_polyline` (full trip) + `leg_polyline` (navigation leg).
+3. On `location_update` events, update driver marker and `leg_polyline`.
+4. When status becomes `in_progress`, leg switches to driver → drop.
+
+---
+
+## 9. Related endpoints
 
 | Purpose | Endpoint |
 |---------|----------|
 | Active ride | `GET /api/v1/driver/rides/current` |
+| Ride status + map | `GET /api/v1/driver/rides/{id}/status` |
 | Search rides | `GET /api/v1/driver/rides/search` |
 | Accept / reject | `POST /api/v1/driver/rides/{id}/accept` or `/reject` |
+| GPS while online | `PATCH /api/v1/driver/location` |
 | Profile | `GET /api/v1/driver/profile` |
-| Live ride updates | `WS /api/v1/ws/rides/{ride_id}?token=...` |
+| Live ride updates | `WS /api/v1/ws/rides/{ride_id}?token=...` (driver or rider JWT) |
 
 ---
 
-## 9. Error codes (common)
+## 10. Error codes (common)
 
 | Code | When |
 |------|------|

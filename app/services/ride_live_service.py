@@ -98,6 +98,29 @@ async def refresh_leg_polyline(db: AsyncSession, ride: Ride, profile: DriverProf
     return polyline
 
 
+async def get_polylines_for_ride(
+    db: AsyncSession,
+    ride: Ride,
+    *,
+    refresh_leg: bool = False,
+) -> tuple[str | None, str | None]:
+    """Return (route_polyline, leg_polyline) for map display."""
+    route_polyline = ride.route_polyline
+    leg_polyline = await get_cached_leg_polyline(str(ride.id))
+
+    if refresh_leg and ride.driver_id and ride.status in _ACTIVE_DRIVER_STATUSES:
+        profile_result = await db.execute(
+            select(DriverProfile).where(DriverProfile.user_id == ride.driver_id)
+        )
+        profile = profile_result.scalar_one_or_none()
+        if profile is not None:
+            refreshed = await refresh_leg_polyline(db, ride, profile)
+            if refreshed:
+                leg_polyline = refreshed
+
+    return route_polyline, leg_polyline
+
+
 async def driver_summary_for_ride(
     db: AsyncSession, ride: Ride, profile: DriverProfile | None = None
 ) -> DriverSummary | None:

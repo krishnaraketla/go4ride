@@ -19,10 +19,11 @@ from app.schemas.driver import (
     DriverRideSearchItem,
     DriverRideSearchMeta,
     DriverRideSearchResponse,
+    DriverRideStatusResponse,
     RiderSummary,
 )
-from app.services import geo_service, ride_rating_service
-from app.services.ride_service import _history_status_clause, transition_ride
+from app.services import geo_service, ride_live_service, ride_rating_service
+from app.services.ride_service import _history_status_clause, get_latest_status_message, transition_ride
 
 # Statuses where the driver is actively managing a ride
 _ACTIVE_STATUSES = {
@@ -134,7 +135,7 @@ async def accept_ride(db: AsyncSession, driver: User, ride_id: UUID) -> DriverRi
     )
     await db.flush()
 
-    return await _to_driver_ride_response(db, ride)
+    return await _to_driver_ride_response(db, ride, refresh_leg=True)
 
 
 async def reject_ride(db: AsyncSession, driver: User, ride_id: UUID) -> dict:
@@ -167,7 +168,7 @@ async def arrived_at_pickup(db: AsyncSession, driver: User, ride_id: UUID) -> Dr
         RideStatus.driver_arrived,
         message="Driver arrived at pickup",
     )
-    return await _to_driver_ride_response(db, ride)
+    return await _to_driver_ride_response(db, ride, refresh_leg=True)
 
 
 async def start_ride(
@@ -195,7 +196,7 @@ async def start_ride(
         RideStatus.in_progress,
         message="Ride started",
     )
-    return await _to_driver_ride_response(db, ride)
+    return await _to_driver_ride_response(db, ride, refresh_leg=True)
 
 
 async def complete_ride(db: AsyncSession, driver: User, ride_id: UUID) -> DriverRideResponse:
@@ -214,7 +215,7 @@ async def complete_ride(db: AsyncSession, driver: User, ride_id: UUID) -> Driver
     profile.total_rides = (profile.total_rides or 0) + 1
     await db.flush()
 
-    return await _to_driver_ride_response(db, ride)
+    return await _to_driver_ride_response(db, ride, refresh_leg=True)
 
 
 async def get_current_ride(db: AsyncSession, driver: User) -> DriverRideResponse | None:
@@ -229,7 +230,33 @@ async def get_current_ride(db: AsyncSession, driver: User) -> DriverRideResponse
     ride = result.scalar_one_or_none()
     if ride is None:
         return None
-    return await _to_driver_ride_response(db, ride)
+    return await _to_driver_ride_response(db, ride, refresh_leg=True)
+
+
+async def get_driver_ride_status(
+    db: AsyncSession, driver: User, ride_id: UUID
+) -> DriverRideStatusResponse:
+    """Lightweight status poll for driver navigation (prefer WebSocket for live updates)."""
+    await _assert_driver_owns_ride(db, driver.id, ride_id)
+    result = await db.execute(
+        select(Ride).where(Ride.id == ride_id).options(selectinload(Ride.ride_type))
+    )
+    ride = result.scalar_one_or_none()
+    if ride is None:
+        raise not_found("Ride not found", "RIDE_NOT_FOUND")
+
+    message = await get_latest_status_message(db, ride.id)
+    route_polyline, leg_polyline = await ride_live_service.get_polylines_for_ride(
+        db, ride, refresh_leg=True
+    )
+    return DriverRideStatusResponse(
+        id=ride.id,
+        status=ride.status.value,
+        message=message,
+        route_polyline=route_polyline,
+        leg_polyline=leg_polyline,
+        start_otp=ride.start_otp,
+    )
 
 
 async def get_driver_ride_history(
@@ -300,10 +327,15 @@ async def _to_driver_ride_response(
     db: AsyncSession,
     ride: Ride,
     rider_rating: int | None = None,
+    *,
+    refresh_leg: bool = False,
 ) -> DriverRideResponse:
     slug = ride.ride_type.slug if ride.ride_type else None
     rider = await _rider_summary(db, ride.rider_id)
     earnings = ride.final_fare if ride.status == RideStatus.completed else None
+    route_polyline, leg_polyline = await ride_live_service.get_polylines_for_ride(
+        db, ride, refresh_leg=refresh_leg
+    )
     return DriverRideResponse(
         id=ride.id,
         status=ride.status.value,
@@ -329,4 +361,6 @@ async def _to_driver_ride_response(
         rider=rider,
         rider_rating=rider_rating,
         earnings=earnings,
+        route_polyline=route_polyline,
+        leg_polyline=leg_polyline,
     )

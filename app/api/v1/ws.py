@@ -132,7 +132,7 @@ async def ride_websocket(
         return
 
     async with async_session_factory() as db:
-        if not await ride_service.rider_owns_ride(db, UUID(user_id), ride_id):
+        if not await ride_service.user_can_access_ride_ws(db, UUID(user_id), ride_id):
             logger.warning(
                 "websocket_forbidden",
                 extra={"ride_id": str(ride_id), "user_id": user_id, "code": 4003},

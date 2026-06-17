@@ -223,8 +223,19 @@ class DriverRideResponse(BaseModel):
     rider: RiderSummary | None
     rider_rating: int | None = None
     earnings: Decimal | None = None
+    route_polyline: str | None = None
+    leg_polyline: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class DriverRideStatusResponse(BaseModel):
+    id: UUID
+    status: str
+    message: str | None = None
+    route_polyline: str | None = None
+    leg_polyline: str | None = None
+    start_otp: str | None = None
 
 
 class AcceptRideRequest(BaseModel):

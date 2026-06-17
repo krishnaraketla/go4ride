@@ -15,6 +15,7 @@ from app.schemas.driver import (
     DriverRideHistoryResponse,
     DriverRideResponse,
     DriverRideSearchResponse,
+    DriverRideStatusResponse,
     RejectRideResponse,
     RideRatingResponse,
     StartRideRequest,
@@ -66,6 +67,17 @@ async def get_current_ride(
     data = await driver_ride_service.get_current_ride(db, driver)
     message = "Active ride retrieved" if data else "No active ride"
     return ok(data, message=message)
+
+
+@router.get("/{ride_id}/status", response_model=ApiResponse[DriverRideStatusResponse])
+async def ride_status(
+    ride_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    driver: Annotated[User, Depends(get_current_driver)],
+):
+    """Lightweight status poll with map polylines (prefer WebSocket for live updates)."""
+    data = await driver_ride_service.get_driver_ride_status(db, driver, ride_id)
+    return ok(data, message="Ride status retrieved")
 
 
 @router.post("/{ride_id}/accept", response_model=ApiResponse[AcceptRideResponse])

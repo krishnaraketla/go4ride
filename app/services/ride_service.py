@@ -163,6 +163,16 @@ async def rider_owns_ride(db: AsyncSession, rider_id: UUID, ride_id: UUID) -> bo
     return result.scalar_one_or_none() is not None
 
 
+async def user_can_access_ride_ws(db: AsyncSession, user_id: UUID, ride_id: UUID) -> bool:
+    """Rider who booked or assigned driver may subscribe to ride WebSocket events."""
+    if await rider_owns_ride(db, user_id, ride_id):
+        return True
+    result = await db.execute(
+        select(Ride.id).where(Ride.id == ride_id, Ride.driver_id == user_id)
+    )
+    return result.scalar_one_or_none() is not None
+
+
 async def create_ride(
     db: AsyncSession,
     rider: User,
@@ -375,6 +385,10 @@ async def _get_ride_for_rider(db: AsyncSession, rider_id: UUID, ride_id: UUID) -
     if ride is None:
         raise not_found("Ride not found", "RIDE_NOT_FOUND")
     return ride
+
+
+async def get_latest_status_message(db: AsyncSession, ride_id: UUID) -> str | None:
+    return await _latest_status_message(db, ride_id)
 
 
 async def _latest_status_message(db: AsyncSession, ride_id: UUID) -> str | None:
