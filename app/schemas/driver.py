@@ -115,7 +115,7 @@ class MenuInbox(BaseModel):
 
 class MenuWallet(BaseModel):
     balance: float = 0.0
-    currency: str = "INR"
+    currency: str = "USD"
 
 
 class MenuSubscription(BaseModel):
@@ -137,7 +137,7 @@ class MenuProfileSummary(BaseModel):
     avatar_url: str | None
     phone: str
     rating: float | None
-    currency: str = "INR"
+    currency: str = "USD"
 
 
 class ProfileMenuResponse(BaseModel):

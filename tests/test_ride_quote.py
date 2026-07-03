@@ -12,8 +12,8 @@ from app.main import app
 from tests.api_helpers import api_json
 
 API = "/api/v1"
-PICKUP = {"lat": "12.9716", "lng": "77.5946"}
-DROP = {"lat": "12.9352", "lng": "77.6245"}
+PICKUP = {"lat": "37.7749", "lng": "-122.4194"}
+DROP = {"lat": "37.7599", "lng": "-122.4148"}
 
 
 def _integration_enabled() -> bool:

@@ -15,8 +15,8 @@ class RideQuoteRequest(BaseModel):
         json_schema_extra={
             "examples": [
                 {
-                    "pickup": {"lat": "12.9716", "lng": "77.5946"},
-                    "drop": {"lat": "12.9352", "lng": "77.6245"},
+                    "pickup": {"lat": "37.7749", "lng": "-122.4194"},
+                    "drop": {"lat": "37.7599", "lng": "-122.4148"},
                 }
             ]
         },
@@ -60,8 +60,8 @@ class CreateRideRequest(BaseModel):
         json_schema_extra={
             "examples": [
                 {
-                    "pickup": {"lat": "12.9716", "lng": "77.5946"},
-                    "drop": {"lat": "12.9352", "lng": "77.6245"},
+                    "pickup": {"lat": "37.7749", "lng": "-122.4194"},
+                    "drop": {"lat": "37.7599", "lng": "-122.4148"},
                     "ride_type_slug": "mini",
                 }
             ]

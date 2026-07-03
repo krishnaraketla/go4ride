@@ -4,8 +4,8 @@ from app.db import clear_otp_limits as clear_otp_limits_module
 
 
 def test_otp_rate_limit_keys_includes_plus_variants() -> None:
-    keys = clear_otp_limits_module._otp_rate_limit_keys(["+919999000001"])
-    assert keys == ["otp:+919999000001", "otp:919999000001"]
+    keys = clear_otp_limits_module._otp_rate_limit_keys(["+15555550001"])
+    assert keys == ["otp:+15555550001", "otp:15555550001"]
 
 
 @pytest.mark.asyncio
@@ -42,7 +42,9 @@ async def test_clear_otp_limits_runs_when_flag_enabled(
     get_settings.cache_clear()
 
     async def fake_clear_otp_limits(phones: list[str] | None = None) -> int:
-        assert phones == ["+919999000001"]
+        assert phones is not None
+        assert "+15555550001" in phones
+        assert "+15555551001" in phones
         return 2
 
     monkeypatch.setattr(clear_otp_limits_module, "clear_otp_limits", fake_clear_otp_limits)
@@ -50,5 +52,5 @@ async def test_clear_otp_limits_runs_when_flag_enabled(
 
     out = capsys.readouterr().out
     assert "Cleared 2 OTP rate-limit key(s)" in out
-    assert "+919999000001" in out
+    assert "+15555550001" in out
     get_settings.cache_clear()

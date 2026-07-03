@@ -21,8 +21,8 @@ HEALTH_URL = f"{BASE_URL}/health"
 DEMO_PHONE = "9876543210"
 DEMO_NAME = "Go4Ride Demo Rider"
 DEMO_EMAIL = "demo-rider@go4ride.example"
-PICKUP = {"lat": "12.9716", "lng": "77.5946"}
-DROP = {"lat": "12.9352", "lng": "77.6245"}
+PICKUP = {"lat": "37.7749", "lng": "-122.4194"}
+DROP = {"lat": "37.7599", "lng": "-122.4148"}
 RIDE_TYPE = "mini"
 HTTP_TIMEOUT = 30.0
 
@@ -357,7 +357,7 @@ def step_addresses(session: DemoSession) -> dict[str, Any]:
                 headers=session.auth_headers,
                 json={
                     "label": "Home",
-                    "address_line": "742 Demo Street, Bangalore",
+                    "address_line": "742 Demo Street, San Francisco, CA",
                     "lat": PICKUP["lat"],
                     "lng": PICKUP["lng"],
                     "is_default": True,

@@ -30,7 +30,7 @@ class FareRule(Base):
     per_km_rate: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0"))
     per_min_rate: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0"))
     minimum_fare: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0"))
-    currency: Mapped[str] = mapped_column(String(3), default="INR")
+    currency: Mapped[str] = mapped_column(String(3), default="USD")
     is_active: Mapped[bool] = mapped_column(default=True)
 
     ride_type: Mapped["RideType"] = relationship()

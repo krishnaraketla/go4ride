@@ -5,7 +5,7 @@ set -euo pipefail
 
 BASE="${BASE_URL:-http://localhost:8000}"
 API="$BASE/api/v1"
-DRIVER_PHONE="+919999000001"
+DRIVER_PHONE="+15555550001"
 
 echo "=== Driver OTP ==="
 DRIVER_OTP_RESP=$(curl -s -X POST "$API/driver/auth/request-otp" \
@@ -23,7 +23,7 @@ echo "=== Driver go online ==="
 curl -s -X PATCH "$API/driver/status" \
   -H "Authorization: Bearer $DRIVER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"status":"online","latitude":12.9700,"longitude":77.5900}' | python3 -m json.tool
+  -d '{"status":"online","latitude":37.7739,"longitude":-122.4184}' | python3 -m json.tool
 
 echo "=== Rider OTP ==="
 RIDER_OTP_RESP=$(curl -s -X POST "$API/auth/request-otp" \
@@ -40,7 +40,7 @@ RIDER_TOKEN=$(echo "$RIDER_AUTH" | python3 -c "import sys,json; print(json.load(
 echo "=== Quote + book ==="
 QUOTE=$(curl -s -X POST "$API/rides/quote" \
   -H "Content-Type: application/json" \
-  -d '{"pickup":{"lat":"12.9716","lng":"77.5946"},"drop":{"lat":"12.9352","lng":"77.6245"}}')
+  -d '{"pickup":{"lat":"37.7749","lng":"-122.4194"},"drop":{"lat":"37.7599","lng":"-122.4148"}}')
 PICKUP_ADDR=$(echo "$QUOTE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['pickup_address'])")
 DROP_ADDR=$(echo "$QUOTE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['drop_address'])")
 
@@ -48,12 +48,12 @@ RIDE=$(curl -s -X POST "$API/rides" \
   -H "Authorization: Bearer $RIDER_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: manual-$(date +%s)" \
-  -d "{\"pickup\":{\"lat\":\"12.9716\",\"lng\":\"77.5946\"},\"drop\":{\"lat\":\"12.9352\",\"lng\":\"77.6245\"},\"pickup_address\":\"$PICKUP_ADDR\",\"drop_address\":\"$DROP_ADDR\",\"ride_type_slug\":\"mini\"}")
+  -d "{\"pickup\":{\"lat\":\"37.7749\",\"lng\":\"-122.4194\"},\"drop\":{\"lat\":\"37.7599\",\"lng\":\"-122.4148\"},\"pickup_address\":\"$PICKUP_ADDR\",\"drop_address\":\"$DROP_ADDR\",\"ride_type_slug\":\"mini\"}")
 RIDE_ID=$(echo "$RIDE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Ride ID: $RIDE_ID"
 
 echo "=== Driver search ==="
-curl -s "$API/driver/rides/search?lat=12.9700&lng=77.5900&radius_km=5" \
+curl -s "$API/driver/rides/search?lat=37.7739&lng=-122.4184&radius_km=5" \
   -H "Authorization: Bearer $DRIVER_TOKEN" | python3 -m json.tool
 
 echo "=== Accept ==="

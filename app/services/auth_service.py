@@ -17,6 +17,7 @@ from app.core.security import (
 )
 from app.models.enums import OTPPurpose, UserRole
 from app.models.user import OTPVerification, RefreshToken, User, UserDevice
+from app.services.otp_bypass import is_otp_bypass, is_otp_bypass_phone
 from app.services.otp_service import send_otp_sms
 
 # Single internal purpose for the unified phone-OTP flow. The DB enum keeps
@@ -42,6 +43,11 @@ async def send_auth_otp(db: AsyncSession, phone: str) -> tuple[str | None, int, 
         raise bad_request("Account is blocked", "ACCOUNT_BLOCKED")
 
     is_new_user = user is None
+    settings = get_settings()
+    if is_otp_bypass_phone(phone):
+        # Pre-seeded test phones: no SMS, no OTP row; verify with otp_bypass_code.
+        return None, settings.otp_expire_minutes, is_new_user
+
     debug_otp, expires_minutes = await _create_otp(db, phone, _AUTH_PURPOSE)
     return debug_otp, expires_minutes, is_new_user
 
@@ -76,17 +82,18 @@ async def verify_otp_and_login(
     Returns ``(user, access_token, refresh_token, is_new_user)``.
     """
 
-    result = await db.execute(
-        select(OTPVerification)
-        .where(OTPVerification.phone == phone, OTPVerification.purpose == _AUTH_PURPOSE)
-        .order_by(OTPVerification.created_at.desc())
-        .limit(1)
-    )
-    otp_record = result.scalar_one_or_none()
-    if otp_record is None or otp_record.expires_at < datetime.now(timezone.utc):
-        raise bad_request("OTP expired or invalid", "OTP_INVALID")
-    if not verify_otp(code, otp_record.code_hash):
-        raise bad_request("OTP expired or invalid", "OTP_INVALID")
+    if not is_otp_bypass(phone, code):
+        result = await db.execute(
+            select(OTPVerification)
+            .where(OTPVerification.phone == phone, OTPVerification.purpose == _AUTH_PURPOSE)
+            .order_by(OTPVerification.created_at.desc())
+            .limit(1)
+        )
+        otp_record = result.scalar_one_or_none()
+        if otp_record is None or otp_record.expires_at < datetime.now(timezone.utc):
+            raise bad_request("OTP expired or invalid", "OTP_INVALID")
+        if not verify_otp(code, otp_record.code_hash):
+            raise bad_request("OTP expired or invalid", "OTP_INVALID")
 
     user_result = await db.execute(select(User).where(User.phone == phone))
     user = user_result.scalar_one_or_none()

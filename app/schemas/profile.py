@@ -23,4 +23,4 @@ class StatsResponse(BaseModel):
     total_rides: int
     completed_rides: int
     total_spend: Decimal
-    currency: str = "INR"
+    currency: str = "USD"

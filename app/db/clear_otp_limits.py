@@ -8,7 +8,17 @@ from app.core.config import get_settings
 from app.core.redis import get_redis
 from app.db.seed import MOCK_DRIVER_PHONE
 
-DEFAULT_DEMO_OTP_PHONES = (MOCK_DRIVER_PHONE,)
+
+def _default_otp_phones() -> list[str]:
+    """Mock driver + OTP-bypass / seed test phones (deduped, stable order)."""
+    settings = get_settings()
+    phones: list[str] = []
+    seen: set[str] = set()
+    for phone in (MOCK_DRIVER_PHONE, *settings.otp_bypass_phones, *settings.clear_otp_limits_phones):
+        if phone and phone not in seen:
+            seen.add(phone)
+            phones.append(phone)
+    return phones
 
 
 def _otp_rate_limit_keys(phones: list[str]) -> list[str]:
@@ -27,7 +37,7 @@ def _otp_rate_limit_keys(phones: list[str]) -> list[str]:
 async def clear_otp_limits(phones: list[str] | None = None) -> int:
     """Delete Redis OTP rate-limit keys for the given phone numbers."""
     client = await get_redis()
-    keys = _otp_rate_limit_keys(phones or list(DEFAULT_DEMO_OTP_PHONES))
+    keys = _otp_rate_limit_keys(phones if phones is not None else _default_otp_phones())
     if not keys:
         return 0
     deleted = await client.delete(*keys)
@@ -39,9 +49,9 @@ async def clear_otp_limits_on_startup_if_enabled() -> None:
     if not settings.clear_otp_limits_on_startup:
         print("CLEAR_OTP_LIMITS_ON_STARTUP disabled; skipping OTP rate-limit cleanup")
         return
-    deleted = await clear_otp_limits(settings.clear_otp_limits_phones)
-    phones = ", ".join(settings.clear_otp_limits_phones)
-    print(f"Cleared {deleted} OTP rate-limit key(s) for: {phones}")
+    phones = settings.clear_otp_limits_phones or _default_otp_phones()
+    deleted = await clear_otp_limits(phones)
+    print(f"Cleared {deleted} OTP rate-limit key(s) for: {', '.join(phones)}")
 
 
 def main() -> None:

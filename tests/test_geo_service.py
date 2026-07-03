@@ -14,7 +14,7 @@ from app.services.geo_service import (
 
 def test_haversine_distance_m() -> None:
     distance_m = haversine_distance_m(
-        Decimal("12.9716"), Decimal("77.5946"), Decimal("12.9700"), Decimal("77.5900")
+        Decimal("37.7749"), Decimal("-122.4194"), Decimal("37.7739"), Decimal("-122.4184")
     )
     assert distance_m > 0
     assert distance_m < 2000
@@ -33,10 +33,10 @@ async def test_get_driving_eta_min_mock_provider(monkeypatch: pytest.MonkeyPatch
 
     get_settings.cache_clear()
     eta = await get_driving_eta_min(
-        Decimal("12.9716"),
-        Decimal("77.5946"),
-        Decimal("12.9352"),
-        Decimal("77.6245"),
+        Decimal("37.7749"),
+        Decimal("-122.4194"),
+        Decimal("37.7599"),
+        Decimal("-122.4148"),
     )
     assert eta is not None
     assert eta >= 1
@@ -69,10 +69,10 @@ async def test_google_routes_eta(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr("app.services.geo_service.httpx.AsyncClient", lambda **kwargs: FakeClient())
     eta = await get_driving_eta_min(
-        Decimal("12.9716"),
-        Decimal("77.5946"),
-        Decimal("12.9700"),
-        Decimal("77.5900"),
+        Decimal("37.7749"),
+        Decimal("-122.4194"),
+        Decimal("37.7739"),
+        Decimal("-122.4184"),
     )
     assert eta == 7
     get_settings.cache_clear()
@@ -112,10 +112,10 @@ async def test_google_routes_route(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr("app.services.geo_service.httpx.AsyncClient", lambda **kwargs: FakeClient())
     route = await get_route(
-        Decimal("12.9716"),
-        Decimal("77.5946"),
-        Decimal("12.9352"),
-        Decimal("77.6245"),
+        Decimal("37.7749"),
+        Decimal("-122.4194"),
+        Decimal("37.7599"),
+        Decimal("-122.4148"),
     )
     assert isinstance(route, RouteInfo)
     assert route.distance_km == Decimal("6.8")
@@ -126,7 +126,7 @@ async def test_google_routes_route(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_haversine_returns_positive_distance():
     distance_km, duration_min = _haversine_estimate(
-        Decimal("12.9716"), Decimal("77.5946"), Decimal("12.9352"), Decimal("77.6245")
+        Decimal("37.7749"), Decimal("-122.4194"), Decimal("37.7599"), Decimal("-122.4148")
     )
     assert distance_km > 0
     assert duration_min > 0
@@ -139,10 +139,10 @@ async def test_get_route_mock_provider(monkeypatch: pytest.MonkeyPatch) -> None:
 
     get_settings.cache_clear()
     route = await get_route(
-        Decimal("12.9716"),
-        Decimal("77.5946"),
-        Decimal("12.9352"),
-        Decimal("77.6245"),
+        Decimal("37.7749"),
+        Decimal("-122.4194"),
+        Decimal("37.7599"),
+        Decimal("-122.4148"),
     )
     assert isinstance(route, RouteInfo)
     assert route.distance_km > 0

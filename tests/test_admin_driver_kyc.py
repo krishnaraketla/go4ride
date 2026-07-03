@@ -15,7 +15,7 @@ from tests.api_helpers import api_error, api_json
 
 API = "/api/v1"
 ADMIN_KEY = "test-admin-key-secret"
-CITY_SLUG = "bangalore"
+CITY_SLUG = "san-francisco"
 
 
 def _integration_enabled() -> bool:
@@ -70,7 +70,7 @@ def _file_field(name: str) -> tuple[str, io.BytesIO, str]:
 
 
 def _register_driver(client: TestClient) -> tuple[str, str, str]:
-    phone = f"+919876{uuid.uuid4().int % 100000:05d}"
+    phone = f"+1555{uuid.uuid4().int % 10_000_000:07d}"
     otp_req = client.post(
         f"{API}/driver/auth/request-otp",
         json={"phone": phone},
@@ -182,7 +182,7 @@ def test_admin_driver_kyc_review_flow(client: TestClient) -> None:
     blocked = client.patch(
         f"{API}/driver/status",
         headers=driver_headers,
-        json={"status": "online", "latitude": "12.9700", "longitude": "77.5900"},
+        json={"status": "online", "latitude": "37.7739", "longitude": "-122.4184"},
     )
     assert blocked.status_code == 400, blocked.text
     assert "KYC_NOT_APPROVED" in blocked.text
@@ -231,7 +231,7 @@ def test_admin_driver_kyc_review_flow(client: TestClient) -> None:
     go_online = client.patch(
         f"{API}/driver/status",
         headers=driver_headers,
-        json={"status": "online", "latitude": "12.9700", "longitude": "77.5900"},
+        json={"status": "online", "latitude": "37.7739", "longitude": "-122.4184"},
     )
     assert go_online.status_code == 200, go_online.text
     assert api_json(go_online)["status"] == "online"

@@ -37,9 +37,9 @@ import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Bangalore coords used in tests/docs (reverse-geocode, quote, ETA).
-PICKUP_LAT, PICKUP_LNG = 12.9716, 77.5946
-DROP_LAT, DROP_LNG = 12.9352, 77.6245
+# San Francisco coords used in tests/docs (reverse-geocode, quote, ETA).
+PICKUP_LAT, PICKUP_LNG = 37.7749, -122.4194
+DROP_LAT, DROP_LNG = 37.7599, -122.4148
 
 GOOGLE_STATUS_HINTS: dict[str, str] = {
     "REQUEST_DENIED": "Key invalid, restricted, or required API not enabled in GCP.",

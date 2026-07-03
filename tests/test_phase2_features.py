@@ -58,7 +58,7 @@ def _reset_clients() -> None:
 
 
 def _register(client: TestClient) -> tuple[str, str]:
-    phone = f"+9199{uuid.uuid4().int % 10**8:08d}"
+    phone = f"+1555{uuid.uuid4().int % 10_000_000:07d}"
     otp_req = client.post(f"{API}/auth/request-otp", json={"phone": phone})
     assert otp_req.status_code == 200, otp_req.text
     otp_data = api_json(otp_req)
@@ -102,14 +102,14 @@ def test_addresses_crud(client: TestClient) -> None:
         json={
             "label": "Home",
             "address_line": "1 Test Street",
-            "lat": "12.9716",
-            "lng": "77.5946",
+            "lat": "37.7749",
+            "lng": "-122.4194",
             "is_default": True,
         },
     )
     assert create.status_code == 200, create.text
     addr_id = api_json(create)["id"]
-    listed = client.get(f"{API}/addresses?lat=12.9716&lng=77.5946", headers=headers)
+    listed = client.get(f"{API}/addresses?lat=37.7749&lng=-122.4194", headers=headers)
     assert listed.status_code == 200
     assert api_json(listed)[0]["distance_m"] is not None
     assert client.delete(f"{API}/addresses/{addr_id}", headers=headers).status_code == 200

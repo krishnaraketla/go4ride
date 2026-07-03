@@ -62,7 +62,7 @@ services:
       - key: CORS_ORIGINS
         value: '["*"]'           # tighten to your frontend origin(s) in the dashboard
       - key: DEFAULT_CURRENCY
-        value: INR
+        value: USD
       - key: ADMIN_API_KEY
         sync: false              # set manually in Render dashboard for internal admin UI
       - key: CLEAR_RIDES_ON_STARTUP

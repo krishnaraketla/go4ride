@@ -17,7 +17,7 @@ class Wallet(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True
     )
     balance: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0"))
-    currency: Mapped[str] = mapped_column(String(3), default="INR")
+    currency: Mapped[str] = mapped_column(String(3), default="USD")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

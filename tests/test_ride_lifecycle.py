@@ -14,8 +14,8 @@ from app.main import app
 from tests.api_helpers import api_json
 
 API = "/api/v1"
-PICKUP = {"lat": "12.9716", "lng": "77.5946"}
-DROP = {"lat": "12.9352", "lng": "77.6245"}
+PICKUP = {"lat": "37.7749", "lng": "-122.4194"}
+DROP = {"lat": "37.7599", "lng": "-122.4148"}
 
 
 def _integration_enabled() -> bool:
@@ -82,7 +82,7 @@ def _register_and_token(client: TestClient, phone: str) -> str:
 
 
 def test_full_mock_lifecycle(client: TestClient) -> None:
-    phone = f"+9198{uuid.uuid4().int % 100_000_000:08d}"
+    phone = f"+1555{uuid.uuid4().int % 10_000_000:07d}"
     token = _register_and_token(client, phone)
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -140,7 +140,7 @@ def test_full_mock_lifecycle(client: TestClient) -> None:
 
 
 def test_cancel_after_driver_assigned(client: TestClient) -> None:
-    phone = f"+9198{uuid.uuid4().int % 100_000_000:08d}"
+    phone = f"+1555{uuid.uuid4().int % 10_000_000:07d}"
     token = _register_and_token(client, phone)
     headers = {"Authorization": f"Bearer {token}"}
 

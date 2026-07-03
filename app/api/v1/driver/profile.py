@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_driver
 from app.core.exceptions import bad_request, not_found
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.driver import DriverProfile
 from app.models.enums import KycStatus
@@ -162,7 +163,7 @@ async def get_profile_menu(
                 rating=rating,
             ),
             inbox=MenuInbox(unread_count=0),
-            wallet=MenuWallet(balance=0.0, currency="INR"),
+            wallet=MenuWallet(balance=0.0, currency=get_settings().default_currency),
             subscription=MenuSubscription(),
             menu_items=menu_items,
         ),

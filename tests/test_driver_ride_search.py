@@ -13,11 +13,11 @@ from app.main import app
 from tests.api_helpers import api_json
 
 API = "/api/v1"
-PICKUP = {"lat": "12.9716", "lng": "77.5946"}
-DROP = {"lat": "12.9352", "lng": "77.6245"}
-NEAR_DRIVER = {"lat": "12.9700", "lng": "77.5900"}
-FAR_DRIVER = {"lat": "13.0500", "lng": "77.7000"}
-SEEDED_DRIVER_PHONE = "+919999000001"
+PICKUP = {"lat": "37.7749", "lng": "-122.4194"}
+DROP = {"lat": "37.7599", "lng": "-122.4148"}
+NEAR_DRIVER = {"lat": "37.7739", "lng": "-122.4184"}
+FAR_DRIVER = {"lat": "37.8044", "lng": "-122.2712"}
+SEEDED_DRIVER_PHONE = "+15555550001"
 
 
 def _integration_enabled() -> bool:
@@ -63,7 +63,7 @@ def _reset_clients() -> None:
 
 
 def _rider_token(client: TestClient) -> str:
-    phone = f"+9198{uuid.uuid4().int % 100_000_000:08d}"
+    phone = f"+1555{uuid.uuid4().int % 10_000_000:07d}"
     otp_req = client.post(f"{API}/auth/request-otp", json={"phone": phone})
     assert otp_req.status_code == 200, otp_req.text
     debug_otp = api_json(otp_req)["debug_otp"]
