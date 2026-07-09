@@ -34,7 +34,9 @@ async def send_auth_otp(db: AsyncSession, phone: str) -> tuple[str | None, int, 
     :func:`verify_otp_and_login`.
     """
 
-    if await check_rate_limit(f"otp:{phone}", limit=5, window_seconds=3600):
+    if not is_otp_bypass_phone(phone) and await check_rate_limit(
+        f"otp:{phone}", limit=5, window_seconds=3600
+    ):
         raise too_many_requests("Too many OTP requests")
 
     result = await db.execute(select(User).where(User.phone == phone))
